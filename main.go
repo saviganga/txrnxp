@@ -4,6 +4,7 @@ import (
 	"os"
 	"txrnxp/home"
 	"txrnxp/initialisers"
+	"txrnxp/xusers"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -22,6 +23,7 @@ func main() {
 	app.Use(logger.New())
 
 	home.Routes(app)
+	xusers.Routes(app)
 
 	app.Listen(":" + port)
 }
