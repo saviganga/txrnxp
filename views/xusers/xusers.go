@@ -1,7 +1,6 @@
 package xusers
 
 import (
-	"fmt"
 	"txrnxp/utils/xusers"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,7 +11,6 @@ func Home(c *fiber.Ctx) error {
 }
 
 func CreateUsers(c *fiber.Ctx) error {
-	fmt.Println("Now i'm creating users")
 
 	user, err := xusers.CreateUser(c)
 

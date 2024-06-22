@@ -6,6 +6,7 @@ import (
 	"txrnxp/routes/home"
 	"txrnxp/routes/wallets"
 	"txrnxp/routes/xusers"
+	"txrnxp/routes/auth_routes"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -26,6 +27,7 @@ func main() {
 	home.Routes(app)
 	xusers.Routes(app)
 	wallets.Routes(app)
+	auth_routes.Routes(app)
 
 	app.Listen(":" + port)
 }

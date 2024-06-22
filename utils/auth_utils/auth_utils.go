@@ -1,4 +1,4 @@
-package auth
+package auth_utils
 
 import (
 	"errors"
@@ -14,7 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func CreateUserAuthToken(user *models.Xuser) string {
+func CreateUserAuthToken(user *models.Xuser) (string, error) {
 
 	// create JWT and auth tokens
 	db := initialisers.ConnectDb().Db
@@ -32,10 +32,10 @@ func CreateUserAuthToken(user *models.Xuser) string {
 	generateToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token, err := generateToken.SignedString([]byte(secret_token))
 	if err != nil || dbError != nil {
-		return "Error creating JWT"
+		return "", errors.New("unable to create user token")
 	}
 
-	return token
+	return token, nil
 }
 
 func ValidateUserEmail(email string) (*models.Xuser, error) {
@@ -46,7 +46,7 @@ func ValidateUserEmail(email string) (*models.Xuser, error) {
 	filter := fmt.Sprintf("%s = ?", keyObject)
 	db.Find(&user, filter, email)
 	if user.Id == uuid.Nil {
-		respMessage := "admin account with provided email does not exist. validate parameters again"
+		respMessage := "invalid credentials. validate parameters again"
 		return nil, errors.New(respMessage)
 	}
 	return user, nil
@@ -61,3 +61,5 @@ func ValidateUserPassword(user *models.Xuser, password string) bool {
 	}
 	return true
 }
+
+
