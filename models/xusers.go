@@ -2,9 +2,7 @@ package models
 
 import (
 	"errors"
-	"fmt"
 	"time"
-	"txrnxp/initialisers"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -48,18 +46,18 @@ func (user *Xuser) BeforeCreate(*gorm.DB) (err error) {
 	return
 }
 
-func (user *Xuser) AfterCreate(tx *gorm.DB) (err error) {
+// func (user *Xuser) AfterCreate(tx *gorm.DB) (err error) {
 
-	// create user wallet
-	db := initialisers.ConnectDb().Db
-	userwallet_query := UserWallet{UserId: user.Id}
-	dbError := db.Create(&userwallet_query).Error
-	if dbError != nil {
-		fmt.Println(dbError)
-		return errors.New("oops! error creating user wallet")
-	}
-	return
-}
+// 	// create user wallet
+// 	db := initialisers.ConnectDb().Db
+// 	userwallet_query := UserWallet{UserId: user.Id}
+// 	dbError := db.Create(&userwallet_query).Error
+// 	if dbError != nil {
+// 		fmt.Println(dbError)
+// 		return errors.New("oops! error creating user wallet")
+// 	}
+// 	return
+// }
 
 type XuserAuthToken struct {
 	Id         uuid.UUID `gorm:"type:uuid;primaryKey;not null" json:"id"`

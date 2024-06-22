@@ -17,6 +17,7 @@ func Routes(app *fiber.App) {
 	routes := app.Group(pathPrefix, logger.New())
 
 	routes.Get("", xusers.Home)
+	routes.Post("", xusers.CreateUsers)
 
 	_ = routes
 }
