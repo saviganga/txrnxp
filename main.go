@@ -2,10 +2,10 @@ package main
 
 import (
 	"os"
-	"txrnxp/home"
 	"txrnxp/initialisers"
-	"txrnxp/wallets"
-	"txrnxp/xusers"
+	"txrnxp/routes/home"
+	"txrnxp/routes/wallets"
+	"txrnxp/routes/xusers"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
