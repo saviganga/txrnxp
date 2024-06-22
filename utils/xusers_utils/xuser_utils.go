@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"txrnxp/initialisers"
 	"txrnxp/models"
-	"txrnxp/utils/wallets"
+	"txrnxp/utils/wallets_utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
@@ -26,7 +26,7 @@ func CreateUser(c *fiber.Ctx) (*models.Xuser, error) {
 		return nil, errors.New(err.Error())
 	}
 
-	err = wallets.CreateUserWallet(user)
+	err = wallets_utils.CreateUserWallet(user)
 	if err != nil {
 		return nil, errors.New("unable to create user wallet")
 	}
