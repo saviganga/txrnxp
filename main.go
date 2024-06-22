@@ -1,13 +1,33 @@
 package main
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"os"
+	"txrnxp/initialisers"
+	"txrnxp/routes/home"
+	"txrnxp/routes/wallets"
+	"txrnxp/routes/xusers"
+	"txrnxp/routes/auth_routes"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+)
+
+func init() {
+	initialisers.LoadEnv()
+	initialisers.ConnectDb()
+}
 
 func main() {
+
+	port := os.Getenv("PORT")
+
 	app := fiber.New()
+	app.Use(logger.New())
 
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("Hello, World!")
-	})
+	home.Routes(app)
+	xusers.Routes(app)
+	wallets.Routes(app)
+	auth_routes.Routes(app)
 
-	app.Listen(":8000")
+	app.Listen(":" + port)
 }
