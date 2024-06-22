@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/utils"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -62,4 +64,55 @@ func ValidateUserPassword(user *models.Xuser, password string) bool {
 	return true
 }
 
+func ValidateAuth(ctx *fiber.Ctx) error {
+	authorization := ctx.Get("Authorization")
+	if authorization == "" {
+		respMessage := "oops! please pass in authorization header"
+		return errors.New(respMessage)
+	}
 
+	jwtSecret := os.Getenv("SECRET_TOKEN")
+	tokenString := JWTSplit(authorization)
+	claims := jwt.MapClaims{}
+
+	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
+	})
+
+	if err != nil {
+		respMessage := "oops! authentication error"
+		return errors.New(respMessage)
+	}
+
+	var userAuth []models.XuserAuthToken
+	db := initialisers.ConnectDb().Db
+	db.Where("token = ? AND user_id = ?", claims["token"], claims["id"]).Find(&userAuth)
+	if len(userAuth) == 0 || userAuth[0].ExpiryDate.String() < time.Now().String() {
+		respMessage := "oop! invalid token. please log in"
+		return errors.New(respMessage)
+	}
+
+	ctx.Locals("user", claims)
+	fmt.Println(claims)
+	return ctx.Next()
+}
+
+func JWTSplit(headerToken string) string {
+	if headerToken == "" {
+		return ""
+	}
+
+	parts := strings.Split(headerToken, "JWT")
+	if len(parts) != 2 {
+		return ""
+	}
+
+	token := strings.TrimSpace(parts[1])
+	if len(token) < 1 {
+		return ""
+	}
+
+	fmt.Println(token)
+
+	return token
+}

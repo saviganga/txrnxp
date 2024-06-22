@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"txrnxp/utils/auth_utils"
 	"txrnxp/views/xusers"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,7 +17,7 @@ func Routes(app *fiber.App) {
 	pathPrefix := fmt.Sprintf("/api/%v/users/", version)
 	routes := app.Group(pathPrefix, logger.New())
 
-	routes.Get("", xusers.Home)
+	routes.Get("", auth_utils.ValidateAuth, xusers.GetUsers)
 	routes.Post("", xusers.CreateUsers)
 
 	_ = routes

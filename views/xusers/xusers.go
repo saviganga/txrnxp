@@ -1,7 +1,7 @@
 package xusers
 
 import (
-	"txrnxp/utils/xusers"
+	"txrnxp/utils/xusers_utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -12,7 +12,7 @@ func Home(c *fiber.Ctx) error {
 
 func CreateUsers(c *fiber.Ctx) error {
 
-	user, err := xusers.CreateUser(c)
+	user, err := xusers_utils.CreateUser(c)
 
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
@@ -20,4 +20,8 @@ func CreateUsers(c *fiber.Ctx) error {
 		})
 	}
 	return c.Status(200).JSON(user)
+}
+
+func GetUsers(c *fiber.Ctx) error {
+	return xusers_utils.GetUsers(c)
 }

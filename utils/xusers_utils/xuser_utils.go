@@ -1,4 +1,4 @@
-package xusers
+package xusers_utils
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 	"txrnxp/utils/wallets"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt"
 )
 
 func CreateUser(c *fiber.Ctx) (*models.Xuser, error) {
@@ -31,4 +32,12 @@ func CreateUser(c *fiber.Ctx) (*models.Xuser, error) {
 	}
 
 	return user, nil
+}
+
+func GetUsers(c *fiber.Ctx) error {
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	users := []models.Xuser{}
+	db.First(&users, "id = ?", authenticated_user["id"])
+	return c.Status(200).JSON(users)
 }
