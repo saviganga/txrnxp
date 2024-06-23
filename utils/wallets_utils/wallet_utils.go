@@ -27,7 +27,7 @@ func GetUserWallets(c *fiber.Ctx) error {
 	privilege := authenticated_user["privilege"]
 	if privilege == "ADMIN" {
 		db.Find(&userwallets)
-	} else{
+	} else {
 		db.First(&userwallets, "user_id = ?", authenticated_user["id"])
 	}
 	return c.Status(200).JSON(userwallets)
