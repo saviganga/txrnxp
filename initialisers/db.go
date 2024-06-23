@@ -35,11 +35,11 @@ func ConnectDb() Dbinstance {
 		os.Exit(2)
 	}
 
-	log.Println("connected")
-	db.Logger = logger.Default.LogMode(logger.Info)
+	log.Println("db connected")
+	db.Logger = logger.Default.LogMode(logger.Error)
 
 	// log.Println("running migrations")
-	// db.AutoMigrate(&models.Xuser{}, models.UserWallet{}, models.XuserAuthToken{})
+	// db.AutoMigrate(&models.Xuser{}, &models.UserWallet{}, &models.XuserAuthToken{}, &models.AdminUser{}, &models.AdminUserAuthToken{})
 
 	DB := Dbinstance{
 		Db: db,
