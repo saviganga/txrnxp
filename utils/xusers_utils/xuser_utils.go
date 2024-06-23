@@ -36,6 +36,11 @@ func GetUsers(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
 	users := []models.Xuser{}
-	db.First(&users, "id = ?", authenticated_user["id"])
+	privilege := authenticated_user["privilege"]
+	if privilege == "ADMIN" {
+		db.Find(&users)
+	} else {
+		db.First(&users, "id = ?", authenticated_user["id"])
+	}
 	return c.Status(200).JSON(users)
 }
