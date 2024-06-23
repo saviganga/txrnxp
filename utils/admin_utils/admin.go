@@ -1,19 +1,18 @@
-package xusers_utils
+package admin_utils
 
 import (
 	"errors"
 	"txrnxp/initialisers"
 	"txrnxp/models"
-	"txrnxp/utils/wallets_utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
 )
 
-func CreateUser(c *fiber.Ctx) (*models.Xuser, error) {
+func CreateAdminUser(c *fiber.Ctx) (*models.AdminUser, error) {
 
 	db := initialisers.ConnectDb().Db
-	user := new(models.Xuser)
+	user := new(models.AdminUser)
 	err := c.BodyParser(user)
 	if err != nil {
 		return nil, errors.New("invalid request body")
@@ -24,18 +23,13 @@ func CreateUser(c *fiber.Ctx) (*models.Xuser, error) {
 		return nil, errors.New(err.Error())
 	}
 
-	err = wallets_utils.CreateUserWallet(user)
-	if err != nil {
-		return nil, errors.New("unable to create user wallet")
-	}
-
 	return user, nil
 }
 
-func GetUsers(c *fiber.Ctx) error {
+func GetAdminUsers(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
-	users := []models.Xuser{}
+	users := []models.AdminUser{}
 	db.First(&users, "id = ?", authenticated_user["id"])
 	return c.Status(200).JSON(users)
 }

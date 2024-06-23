@@ -1,5 +1,6 @@
 package models
 
+
 import (
 	"errors"
 	"time"
@@ -9,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type Xuser struct {
+type AdminUser struct {
 	Id          uuid.UUID `gorm:"type:uuid;primaryKey;not null" json:"id"`
 	Email       string    `gorm:"type:varchar(50);not null;unique" json:"email"`
 	Password    string    `gorm:"type:varchar(128);not null" json:"password"`
@@ -19,13 +20,12 @@ type Xuser struct {
 	PhoneNumber string    `gorm:"type:varchar(15)" json:"phone_number"`
 	IsActive    bool      `gorm:"type:boolean;default:true" json:"is_active"`
 	IsVerified  bool      `gorm:"type:boolean;default:false" json:"is_verified"`
-	IsBusiness  bool      `gorm:"type:boolean;default:false" json:"is_business"`
 	LastLogin   time.Time `gorm:"type:timestamp with time zone" json:"last_login"`
 	CreatedAt   time.Time `gorm:"type:timestamp with time zone;default:now()" json:"created_at"`
 	UpdatedAt   time.Time `gorm:"type:timestamp with time zone" json:"updated_at"`
 }
 
-func (user *Xuser) BeforeCreate(*gorm.DB) (err error) {
+func (user *AdminUser) BeforeCreate(*gorm.DB) (err error) {
 	if len(user.Email) == 0 {
 		return errors.New("email cannot be empty")
 	}
@@ -46,15 +46,15 @@ func (user *Xuser) BeforeCreate(*gorm.DB) (err error) {
 	return
 }
 
-type XuserAuthToken struct {
+type AdminUserAuthToken struct {
 	Id         uuid.UUID `gorm:"type:uuid;primaryKey;not null" json:"id"`
 	UserId     uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
 	Token      string    `gorm:"type:varchar(50);not null;" json:"token"`
 	ExpiryDate time.Time `gorm:"type:timestamp with time zone" json:"expiry_date"`
-	User       Xuser     `gorm:"foreignKey:UserId;constraint:OnDelete:CASCADE"`
+	User       AdminUser     `gorm:"foreignKey:UserId;constraint:OnDelete:CASCADE"`
 }
 
-func (authToken *XuserAuthToken) BeforeCreate(*gorm.DB) (err error) {
+func (authToken *AdminUserAuthToken) BeforeCreate(*gorm.DB) (err error) {
 	authToken.Id = uuid.New()
 	return
 }

@@ -25,6 +25,7 @@ func CreateUserAuthToken(user *models.Xuser) (string, error) {
 		"email": user.Email,
 		"id":    user.Id,
 		"token": token,
+		"privilege": "USER",
 	}
 
 	adminToken := models.XuserAuthToken{UserId: user.Id, Token: token, ExpiryDate: time.Now().Add(time.Hour * 72)}
@@ -40,22 +41,66 @@ func CreateUserAuthToken(user *models.Xuser) (string, error) {
 	return token, nil
 }
 
-func ValidateUserEmail(email string) (*models.Xuser, error) {
+func CreateAdminUserAuthToken(adminUser *models.AdminUser) (string, error) {
+
+	// create JWT and auth tokens
+	db := initialisers.ConnectDb().Db
+	token := utils.GenerateRandomString(6)
+	claims := jwt.MapClaims{
+		"email": adminUser.Email,
+		"id":    adminUser.Id,
+		"token": token,
+		"privilege": "ADMIN",
+	}
+
+	adminToken := models.AdminUserAuthToken{UserId: adminUser.Id, Token: token, ExpiryDate: time.Now().Add(time.Hour * 72)}
+	dbError := db.Create(&adminToken).Error
+
+	secret_token := os.Getenv("SECRET_TOKEN")
+	generateToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, err := generateToken.SignedString([]byte(secret_token))
+	if err != nil || dbError != nil {
+		return "", errors.New("unable to create user token")
+	}
+
+	return token, nil
+}
+
+func ValidateUserEmail(email string, platform string) (*models.Xuser, *models.AdminUser, error) {
 
 	db := initialisers.ConnectDb().Db
-	user := new(models.Xuser)
 	keyObject := "email"
 	filter := fmt.Sprintf("%s = ?", keyObject)
-	db.Find(&user, filter, email)
-	if user.Id == uuid.Nil {
-		respMessage := "invalid credentials. validate parameters again"
-		return nil, errors.New(respMessage)
+	if platform == "ADMIN" {
+		user := new(models.AdminUser)
+		db.Find(&user, filter, email)
+		if user.Id == uuid.Nil {
+			respMessage := "invalid admin credentials. validate parameters again"
+			return nil, nil, errors.New(respMessage)
+		}
+		return nil, user, nil
+	} else {
+		user := new(models.Xuser)
+		db.Find(&user, filter, email)
+		if user.Id == uuid.Nil {
+			respMessage := "invalid credentials. validate parameters again"
+			return nil, nil, errors.New(respMessage)
+		}
+		return user, nil, nil
 	}
-	return user, nil
-
+	
 }
 
 func ValidateUserPassword(user *models.Xuser, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		fmt.Println("Invalid Password:", err)
+		return false
+	}
+	return true
+}
+
+func ValidateAdminUserPassword(user *models.AdminUser, password string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		fmt.Println("Invalid Password:", err)
@@ -84,16 +129,26 @@ func ValidateAuth(ctx *fiber.Ctx) error {
 		return errors.New(respMessage)
 	}
 
-	var userAuth []models.XuserAuthToken
-	db := initialisers.ConnectDb().Db
-	db.Where("token = ? AND user_id = ?", claims["token"], claims["id"]).Find(&userAuth)
-	if len(userAuth) == 0 || userAuth[0].ExpiryDate.String() < time.Now().String() {
-		respMessage := "oop! invalid token. please log in"
-		return errors.New(respMessage)
+	privilege := claims["privilege"]
+	if privilege == "USER" {
+		var userAuth []models.XuserAuthToken
+		db := initialisers.ConnectDb().Db
+		db.Where("token = ? AND user_id = ?", claims["token"], claims["id"]).Find(&userAuth)
+		if len(userAuth) == 0 || userAuth[0].ExpiryDate.String() < time.Now().String() {
+			respMessage := "oop! invalid token. please log in"
+			return errors.New(respMessage)
+		}
+	} else {
+		var userAuth []models.AdminUserAuthToken
+		db := initialisers.ConnectDb().Db
+		db.Where("token = ? AND user_id = ?", claims["token"], claims["id"]).Find(&userAuth)
+		if len(userAuth) == 0 || userAuth[0].ExpiryDate.String() < time.Now().String() {
+			respMessage := "oop! invalid token. please log in"
+			return errors.New(respMessage)
+		}
 	}
 
 	ctx.Locals("user", claims)
-	fmt.Println(claims)
 	return ctx.Next()
 }
 
@@ -111,8 +166,5 @@ func JWTSplit(headerToken string) string {
 	if len(token) < 1 {
 		return ""
 	}
-
-	fmt.Println(token)
-
 	return token
 }
