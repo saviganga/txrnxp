@@ -64,7 +64,7 @@ func (event *Event) BeforeCreate(*gorm.DB) (err error) {
 	}
 
 	if len(event.OrganiserId) == 0 {
-		return errors.New("organisaer id cannot be empty")
+		return errors.New("organiser id cannot be empty")
 	}
 
 	if len(event.Reference) == 0 {
