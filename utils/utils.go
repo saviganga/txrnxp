@@ -25,3 +25,7 @@ func ConvertStringToUUID(s string) (uuid.UUID, error) {
 	}
 	return parsedUUID, nil
 }
+
+func CreateEventReference() string {
+	return GenerateRandomString((6))
+}

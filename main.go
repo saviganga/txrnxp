@@ -9,6 +9,7 @@ import (
 	"txrnxp/routes/wallets"
 	"txrnxp/routes/xusers"
 	"txrnxp/routes/business_routes"
+	"txrnxp/routes/event_routes"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -32,6 +33,7 @@ func main() {
 	auth_routes.Routes(app)
 	admin_routes.Routes(app)
 	business_routes.Routes((app))
+	event_routes.Routes((app))
 
 	app.Listen(":" + port)
 }
