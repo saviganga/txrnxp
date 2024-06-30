@@ -1,13 +1,18 @@
 package event_views
 
 import (
+	"txrnxp/initialisers"
+	"txrnxp/models"
 	"txrnxp/utils/event_utils"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func GetEvents(c *fiber.Ctx) error {
-	return c.SendString("Welcome to the United States of Ganga events nigguuhhhhh!")
+	db := initialisers.ConnectDb().Db
+	events := []models.Event{}
+	db.Find(&events)
+	return c.Status(200).JSON(events)
 }
 
 func CreateEvents(c *fiber.Ctx) error {
