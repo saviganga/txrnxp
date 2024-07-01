@@ -17,7 +17,7 @@ func Routes(app *fiber.App) {
 	pathPrefix := fmt.Sprintf("/api/%v/tickets/", version)
 	routes := app.Group(pathPrefix, logger.New())
 
-	routes.Get("events/", ticket_views.Home)
+	routes.Get("events/", auth_utils.ValidateAuth, ticket_views.GetEventTickets)
 	routes.Post("events/", auth_utils.ValidateAuth, ticket_views.CreateEventTicket)
 
 	_ = routes

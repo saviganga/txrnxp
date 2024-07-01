@@ -60,3 +60,27 @@ func CreateEventTicket(c *fiber.Ctx) (*models.EventTicket, error) {
 
 	return eventTicket, nil
 }
+
+
+func GetEventTickets(user_id string, entity string) ([]models.EventTicket, error) {
+	db := initialisers.ConnectDb().Db
+	event_tickets := []models.EventTicket{}
+
+	if strings.ToUpper(entity) == "BUSINESS" {
+		businesses := []models.Business{}
+		db.First(&businesses, "user_id = ?", user_id)
+		business_id := businesses[0].Id.String()
+		result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Where("events.organiser_id = ?", business_id).Find(&event_tickets)
+		if result.Error != nil {
+			return nil, result.Error
+		}
+	} else {
+		organiser_id := user_id
+		result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Where("events.organiser_id = ?", organiser_id).Find(&event_tickets)
+		if result.Error != nil {
+			return nil, result.Error
+		}
+	}
+
+	return event_tickets, nil
+}
