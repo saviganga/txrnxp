@@ -70,12 +70,14 @@ func GetEventTickets(user_id string, entity string) ([]models.EventTicket, error
 		businesses := []models.Business{}
 		db.First(&businesses, "user_id = ?", user_id)
 		business_id := businesses[0].Id.String()
+		// result := db.Model(&models.EventTicket{}).Joins("Event").Where("Event.organiser_id = ?", business_id).Find(&event_tickets)
 		result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Where("events.organiser_id = ?", business_id).Find(&event_tickets)
 		if result.Error != nil {
 			return nil, result.Error
 		}
 	} else {
 		organiser_id := user_id
+		// result := db.Model(&models.EventTicket{}).Joins("Event").Where("Event.organiser_id = ?", organiser_id).Find(&event_tickets)
 		result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Where("events.organiser_id = ?", organiser_id).Find(&event_tickets)
 		if result.Error != nil {
 			return nil, result.Error
@@ -83,4 +85,32 @@ func GetEventTickets(user_id string, entity string) ([]models.EventTicket, error
 	}
 
 	return event_tickets, nil
+}
+
+
+func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) {
+	db := initialisers.ConnectDb().Db
+	user_tickets := []models.UserTicket{}
+
+	if strings.ToUpper(entity) == "BUSINESS" {
+		businesses := []models.Business{}
+		db.First(&businesses, "user_id = ?", user_id)
+		business_id := businesses[0].Id.String()
+		result := db.Model(&models.UserTicket{}).Joins("User").Joins("Event").Joins("EventTicket").Where("events.organiser_id = ?", business_id).Find(&user_tickets)
+		// result := db.Joins("JOIN events ON user_ticket.event_id = events.id").Where("events.organiser_id = ?", business_id).Find(&user_tickets)
+		if result.Error != nil {
+			return nil, result.Error
+		}
+	} else {
+		organiser_id := user_id
+		result := db.Model(&models.UserTicket{}).Joins("User").Find(&user_tickets, "user_tickets.user_id = ?", organiser_id)
+		// result := db.Table("user_tickets").Joins("User").Find(&user_tickets, "user_ticket.user_id = ?", organiser_id)
+		// result := db.Joins("User").Find(&user_tickets, "user_ticket.user_id == ?", organiser_id) //.Joins("Manager").Joins("Account").Find(&users, "users.id IN ?", []int{1,2,3,4,5})
+		// result := db.Joins("user").First()
+		if result.Error != nil {
+			return nil, result.Error
+		}
+	}
+
+	return user_tickets, nil
 }

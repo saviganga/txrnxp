@@ -19,6 +19,7 @@ func Routes(app *fiber.App) {
 
 	routes.Get("events/", auth_utils.ValidateAuth, ticket_views.GetEventTickets)
 	routes.Post("events/", auth_utils.ValidateAuth, ticket_views.CreateEventTicket)
+	routes.Get("users/", auth_utils.ValidateAuth, ticket_views.GetUserTickets)
 
 	_ = routes
 }
