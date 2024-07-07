@@ -31,9 +31,9 @@ func GetBusiness(c *fiber.Ctx) error {
 	businesses := []models.Business{}
 	privilege := authenticated_user["privilege"]
 	if privilege == "ADMIN" {
-		db.Find(&businesses)
+		db.Model(&models.Business{}).Joins("User").Find(&businesses).Order("businesses.created_at DESC")
 	} else {
-		db.First(&businesses, "user_id = ?", authenticated_user["id"])
+		db.Model(&models.Business{}).Joins("User").First(&businesses, "businesses.user_id = ?", authenticated_user["id"]).Order("businesses.created_at DESC")
 	}
 	return c.Status(200).JSON(businesses)
 

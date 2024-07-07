@@ -20,7 +20,6 @@ func CreateBusiness(c *fiber.Ctx) (*models.Business, error) {
 	parsedUUID, err := utils.ConvertStringToUUID(authenticated_user["id"].(string))
 
 	if err != nil {
-		fmt.Println("Error parsing UUID:", err)
 		return nil, errors.New("invalid parsed id")
 	} else {
 		fmt.Println("Successfully parsed UUID:", parsedUUID)
@@ -29,7 +28,6 @@ func CreateBusiness(c *fiber.Ctx) (*models.Business, error) {
 	business.UserId = parsedUUID
 	err = c.BodyParser(business)
 	if err != nil {
-		fmt.Println("error:", err)
 		return nil, errors.New("invalid request body")
 	}
 	err = db.Create(&business).Error
