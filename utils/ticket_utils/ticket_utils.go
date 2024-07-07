@@ -2,9 +2,11 @@ package ticket_utils
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"txrnxp/initialisers"
 	"txrnxp/models"
+	"txrnxp/serializers/ticket_serializers"
 	"txrnxp/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -22,7 +24,7 @@ func CreateEventTicket(c *fiber.Ctx) (*models.EventTicket, error) {
 	reference := utils.CreateEventReference()
 	eventTicket.Reference = reference
 
-	// pparse the request body
+	// parse the request body
 	err := c.BodyParser(eventTicket)
 	if err != nil {
 		return nil, errors.New("invalid request body")
@@ -61,7 +63,6 @@ func CreateEventTicket(c *fiber.Ctx) (*models.EventTicket, error) {
 	return eventTicket, nil
 }
 
-
 func GetEventTickets(user_id string, entity string) ([]models.EventTicket, error) {
 	db := initialisers.ConnectDb().Db
 	event_tickets := []models.EventTicket{}
@@ -84,7 +85,6 @@ func GetEventTickets(user_id string, entity string) ([]models.EventTicket, error
 
 	return event_tickets, nil
 }
-
 
 func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) {
 	db := initialisers.ConnectDb().Db
@@ -111,4 +111,84 @@ func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) 
 	}
 
 	return user_tickets, nil
+}
+
+func CreateUserTicket(c *fiber.Ctx) (*models.UserTicket, error) {
+
+	// initialise niggas
+	db := initialisers.ConnectDb().Db
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	userTicket := new(models.UserTicket)
+	eventTicket := []models.EventTicket{}
+	userwallets := []models.UserWallet{}
+
+	entity := c.Get("Entity")
+	if strings.ToUpper(entity) != "" {
+		return nil, errors.New("oops! this feature is not available to businesses")
+	}
+
+	user_request := new(ticket_serializers.CreateUserTicketSerializer)
+	err := c.BodyParser(user_request)
+	if err != nil {
+		return nil, errors.New("invalid request body")
+	}
+
+	// get the eventTicket
+	result := db.First(&eventTicket, "id = ?", user_request.EventTicketId)
+	if result.Error != nil {
+		return nil, errors.New("invalid eventTicket")
+	}
+	// fill in the eventId field
+	userTicket.EventId = eventTicket[0].EventId
+
+	// validate user
+	if user_request.UserId == "" {
+		userTicket_userId, err := utils.ConvertStringToUUID(authenticated_user["id"].(string))
+		if err != nil {
+			return nil, errors.New("invalid parsed id")
+		}
+		userTicket.UserId = userTicket_userId
+	} else {
+		userTicket_userId, err := utils.ConvertStringToUUID(user_request.UserId)
+		if err != nil {
+			return nil, errors.New("invalid parsed id")
+		}
+		userTicket.UserId = userTicket_userId
+	}
+
+	// create reference
+	reference := utils.CreateEventReference()
+	userTicket.Reference = reference
+
+
+	// get user wallet
+	db.Model(&models.UserWallet{}).Joins("User").First(&userwallets, "user_wallets.user_id = ?", userTicket.UserId)
+
+	// check event ticket conditions
+	// price
+	eventTicket_float_price, err := strconv.ParseFloat(eventTicket[0].Price, 64)
+	if err != nil {
+		return nil, errors.New("error converting event ticket price")
+	}
+	userWallet_available_balance, err := strconv.ParseFloat(userwallets[0].AvailableBalance, 64)
+	if err != nil {
+		return nil, errors.New("error converting wallet available balance")
+	}
+	if userWallet_available_balance < eventTicket_float_price {
+		return nil, errors.New("oops! insufficient wallet funds")
+	}
+
+	// limited stock/stock number
+
+	// purchase limit
+
+	// count
+
+	err = db.Create(&userTicket).Error
+
+	if err != nil {
+		return nil, errors.New(err.Error())
+	}
+
+	return userTicket, nil
 }

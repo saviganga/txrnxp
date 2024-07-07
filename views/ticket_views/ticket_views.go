@@ -39,7 +39,6 @@ func GetEventTickets(c *fiber.Ctx) error {
 
 }
 
-
 func GetUserTickets(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	entity := c.Get("Entity")
@@ -53,5 +52,17 @@ func GetUserTickets(c *fiber.Ctx) error {
 	}
 
 	return c.Status(200).JSON(user_tickets)
+
+}
+
+func CreateUserTicket(c *fiber.Ctx) error {
+	user_ticket, err := ticket_utils.CreateUserTicket(c)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	return c.Status(200).JSON(user_ticket)
 
 }
