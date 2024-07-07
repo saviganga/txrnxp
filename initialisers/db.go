@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"txrnxp/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -38,8 +39,8 @@ func ConnectDb() Dbinstance {
 	log.Println("db connected")
 	db.Logger = logger.Default.LogMode(logger.Error)
 
-	// log.Println("running migrations")
-	// db.AutoMigrate(&models.Xuser{}, &models.UserWallet{}, &models.XuserAuthToken{}, &models.AdminUser{}, &models.AdminUserAuthToken{}, &models.Business{}, models.Event{}, models.EventTicket{}, models.UserTicket{})
+	log.Println("running migrations")
+	db.AutoMigrate(&models.Xuser{}, &models.UserWallet{}, &models.XuserAuthToken{}, &models.AdminUser{}, &models.AdminUserAuthToken{}, &models.Business{}, models.Event{}, models.EventTicket{}, models.UserTicket{})
 
 	DB := Dbinstance{
 		Db: db,
