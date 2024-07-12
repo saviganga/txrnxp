@@ -18,6 +18,8 @@ func Routes(app *fiber.App) {
 	routes := app.Group(pathPrefix, logger.New())
 
 	routes.Get("", auth_utils.ValidateAuth, wallets.GetWallets)
+	routes.Get("/entries", auth_utils.ValidateAuth, wallets.GetUserWalletTransactions)
+	routes.Post("/topup/admin", auth_utils.ValidateAuth, wallets.AdminTopupWallet)
 
 	_ = routes
 }
