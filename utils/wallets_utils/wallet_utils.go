@@ -2,7 +2,6 @@ package wallets_utils
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"txrnxp/initialisers"
@@ -74,8 +73,6 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 	// get the user wallet
 	db.Model(&models.UserWallet{}).Joins("User").First(&userwallets, "user_wallets.user_id = ?", entry_request.UserId)
 	userwallet := userwallets[0]
-	fmt.Println(userwallet.UserId)
-	// fmt.Println(userwallet.UserId)
 
 	old_available_balance, err := strconv.ParseFloat(userwallets[0].AvailableBalance, 64)
 	if err != nil {
@@ -98,8 +95,8 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 
 	if strings.ToUpper(entry_request.EntryType) == "CREDIT" {
 
-		new_available_balance := strconv.FormatFloat(old_available_balance + entry_request_amount_float, 'f', -1, 64)
-		new_ledger_balance := strconv.FormatFloat(old_ledger_balance + entry_request_amount_float, 'f', -1, 64)
+		new_available_balance := strconv.FormatFloat(old_available_balance+entry_request_amount_float, 'f', -1, 64)
+		new_ledger_balance := strconv.FormatFloat(old_ledger_balance+entry_request_amount_float, 'f', -1, 64)
 		entry_description := "Manual entry - credit"
 		err = db.Save(&models.UserWallet{Id: userwallet.Id, AvailableBalance: new_available_balance, LedgerBalance: new_ledger_balance, UserId: user_id_uuid}).Error
 		if err != nil {
@@ -117,8 +114,8 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 
 	} else {
 
-		new_available_balance := strconv.FormatFloat(old_available_balance - entry_request_amount_float, 'f', -1, 64)
-		new_ledger_balance := strconv.FormatFloat(old_ledger_balance - entry_request_amount_float, 'f', -1, 64)
+		new_available_balance := strconv.FormatFloat(old_available_balance-entry_request_amount_float, 'f', -1, 64)
+		new_ledger_balance := strconv.FormatFloat(old_ledger_balance-entry_request_amount_float, 'f', -1, 64)
 		entry_description := "Manual entry - debit"
 		err = db.Save(&models.UserWallet{Id: userwallet.Id, AvailableBalance: new_available_balance, LedgerBalance: new_ledger_balance, UserId: user_id_uuid}).Error
 		if err != nil {
@@ -131,7 +128,7 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 		if dbError != nil {
 			return false, dbError.Error()
 		}
-		
+
 		return true, "Successful"
 	}
 
