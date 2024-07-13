@@ -46,7 +46,7 @@ func GetUserWalletTransactions(c *fiber.Ctx) error {
 	if privilege == "ADMIN" {
 		db.Model(&models.TransactionEntries{}).Joins("User").Find(&wallet_tx)
 	} else {
-		db.Model(&models.TransactionEntries{}).Joins("User").First(&wallet_tx, "user_wallets.user_id = ?", authenticated_user["id"])
+		db.Find(&wallet_tx, "user_id = ?", authenticated_user["id"])
 	}
 	return c.Status(200).JSON(wallet_tx)
 
@@ -59,7 +59,6 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 	userwallets := []models.UserWallet{}
 
 	privilege := authenticated_user["privilege"].(string)
-
 	if strings.ToUpper(privilege) != "ADMIN" {
 		return false, "Oops! this feature is only available for admins"
 	}
