@@ -8,9 +8,11 @@ import (
 	"txrnxp/models"
 	"txrnxp/serializers/wallet_serializers"
 	"txrnxp/utils"
+	"txrnxp/utils/db_utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 )
 
 func CreateUserWallet(user *models.Xuser) error {
@@ -130,5 +132,53 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 
 		return true, "Successful"
 	}
+
+}
+
+func DebitUserWallet(user_id uuid.UUID, amount string, description string) (bool, string) {
+
+	db := initialisers.ConnectDb().Db
+	userwallets := []models.UserWallet{}
+
+	// convert amount to float
+	amount_float, err := strconv.ParseFloat(amount, 64)
+	if err != nil {
+		return false, "error converting event ticket price"
+	}
+
+	// get user wallet
+	err = db.Model(&models.UserWallet{}).Joins("User").First(&userwallets, "user_wallets.user_id = ?", user_id).Error
+	if err != nil {
+		return false, "Oops! Unable to find user wallet"
+	}
+
+	// convert wallet balance to float
+	userWallet_available_balance, err := strconv.ParseFloat(userwallets[0].AvailableBalance, 64)
+	if err != nil {
+		return false, "error converting wallet available balance"
+	}
+	userWallet_ledger_balance, err := strconv.ParseFloat(userwallets[0].LedgerBalance, 64)
+	if err != nil {
+		return false, "error converting wallet available balance"
+	}
+
+	if userWallet_available_balance < amount_float {
+		return false, "oops! insufficient wallet funds"
+	}
+
+	// debit user wallet
+	userwallets[0].AvailableBalance = strconv.FormatFloat(userWallet_available_balance-amount_float, 'f', -1, 64)
+	userwallets[0].LedgerBalance = strconv.FormatFloat(userWallet_ledger_balance-amount_float, 'f', -1, 64)
+	is_debited, debited_wallet := db_utils.UpdateWallet(&userwallets[0])
+	if !is_debited {
+		return false, debited_wallet
+	}
+	// update wallet transaction
+	wallet_tx := models.TransactionEntries{UserId: user_id, Amount: amount, Description: description}
+	dbError := db.Create(&wallet_tx).Error
+	if dbError != nil {
+		return false, dbError.Error()
+	}
+	return true, debited_wallet
 
 }
