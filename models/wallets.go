@@ -2,6 +2,7 @@ package models
 
 import (
 	"time"
+	"txrnxp/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -37,5 +38,6 @@ type TransactionEntries struct {
 func (tx *TransactionEntries) BeforeCreate(*gorm.DB) (err error) {
 
 	tx.Id = uuid.New()
+	tx.Reference = utils.CreateEventReference()
 	return
 }
