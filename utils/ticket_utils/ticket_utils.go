@@ -118,23 +118,26 @@ func CreateUserTicket(c *fiber.Ctx) (*models.UserTicket, error) {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	userTicket := new(models.UserTicket)
 	eventTicket := []models.EventTicket{}
+	privilege := authenticated_user["privilege"].(string)
+	entity := c.Get("Entity")
+	user_request := new(ticket_serializers.CreateUserTicketSerializer)
 
 	// validate request user
-	privilege := authenticated_user["privilege"].(string)
 	if strings.ToUpper(privilege) == "ADMIN" {
 		return nil, errors.New("oops! this feature is not available for admins")
 	}
-
-	entity := c.Get("Entity")
 	if strings.ToUpper(entity) != "" {
 		return nil, errors.New("oops! this feature is not available to businesses")
 	}
 
 	// validate request body
-	user_request := new(ticket_serializers.CreateUserTicketSerializer)
 	err := c.BodyParser(user_request)
 	if err != nil {
 		return nil, errors.New("invalid request body")
+	}
+
+	if user_request.Count <= 0 {
+		user_request.Count = 1
 	}
 
 	// get the eventTicket
@@ -147,61 +150,62 @@ func CreateUserTicket(c *fiber.Ctx) (*models.UserTicket, error) {
 	userTicket.EventTicketId = eventTicket[0].Id
 
 	// validate user
-	if user_request.UserId == "" {
-		userTicket_userId, err := utils.ConvertStringToUUID(authenticated_user["id"].(string))
-		if err != nil {
-			return nil, errors.New("invalid parsed id")
-		}
-		userTicket.UserId = userTicket_userId
-	} else {
-		userTicket_userId, err := utils.ConvertStringToUUID(user_request.UserId)
-		if err != nil {
-			return nil, errors.New("invalid parsed id")
-		}
-		userTicket.UserId = userTicket_userId
+	userTicket_userId, err := utils.ConvertStringToUUID(authenticated_user["id"].(string))
+	if err != nil {
+		return nil, errors.New("invalid parsed id")
 	}
-	// fmt.Println(user_request.Count)
-	if user_request.Count <= 0 {
-		user_request.Count = 1
+	userTicket.UserId = userTicket_userId
+
+	// check event ticket conditions and create user ticket
+	userTicket, err = ValidateCreateUserTicketConditions(userTicket, &eventTicket[0], user_request.Count)
+
+	if err != nil {
+		return nil, err
 	}
 
-	// event and user ticket conditions
-	db.Where("user_id = ? AND event_ticket_id = ?", userTicket.UserId, user_request.EventTicketId).Find(&userTicket)
+	return userTicket, nil
+
+}
+
+func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTicket *models.EventTicket, ticket_count int) (*models.UserTicket, error) {
+
+	db := initialisers.ConnectDb().Db
+	db.Where("user_id = ? AND event_ticket_id = ?", userTicket.UserId, userTicket.EventTicketId).Find(&userTicket)
+
 	if userTicket.Id != uuid.Nil {
 
 		// event ticket limited stock/stock number
-		if eventTicket[0].IsLimitedStock {
+		if eventTicket.IsLimitedStock {
 
 			// compare stock number and sold tickets
-			if eventTicket[0].SoldTickets >= eventTicket[0].StockNumber {
+			if eventTicket.SoldTickets >= eventTicket.StockNumber {
 				return nil, errors.New("oops! ticket out of stock")
 			}
 		}
 
 		// purchase limit
-		userTicket.Count += user_request.Count
-		if eventTicket[0].PurchaseLimit > 0 {
-			if userTicket.Count > eventTicket[0].PurchaseLimit {
+		userTicket.Count += ticket_count
+		if eventTicket.PurchaseLimit > 0 {
+			if userTicket.Count > eventTicket.PurchaseLimit {
 				return nil, errors.New("oops! purchase limit reached")
 			}
 		}
 
 		// debit user wallet
 		entry_description := "ticket purchase"
-		is_debited, debited_wallet := wallets_utils.DebitUserWallet(userTicket.UserId, eventTicket[0].Price, entry_description)
+		is_debited, debited_wallet := wallets_utils.DebitUserWallet(userTicket.UserId, eventTicket.Price, entry_description)
 		if !is_debited {
 			return nil, errors.New(debited_wallet)
 		}
 
 		// update sold tickets - event ticket
-		eventTicket[0].SoldTickets += user_request.Count
-		is_updated_event_ticket, updated_event_ticket := db_utils.UpdateEventTicket(&eventTicket[0])
+		eventTicket.SoldTickets += ticket_count
+		is_updated_event_ticket, updated_event_ticket := db_utils.UpdateEventTicket(eventTicket)
 		if !is_updated_event_ticket {
 			return nil, errors.New(updated_event_ticket)
 		}
 
 		// increase userticket count
-		// userTicket.Count += user_request.Count
 		is_updated_user_ticket, updated_user_ticket := db_utils.UpdateUserTicket(userTicket)
 		if !is_updated_user_ticket {
 			return nil, errors.New(updated_user_ticket)
@@ -210,43 +214,44 @@ func CreateUserTicket(c *fiber.Ctx) (*models.UserTicket, error) {
 		return userTicket, nil
 
 	} else {
+		
 		// create reference
 		reference := utils.CreateEventReference()
 		userTicket.Reference = reference
-		userTicket.EventTicketId = eventTicket[0].Id
+		userTicket.EventTicketId = eventTicket.Id
 
 		// event ticket limited stock/stock number
-		if eventTicket[0].IsLimitedStock {
+		if eventTicket.IsLimitedStock {
 
 			// compare stock number and sold tickets
-			if eventTicket[0].SoldTickets >= eventTicket[0].StockNumber {
+			if eventTicket.SoldTickets >= eventTicket.StockNumber {
 				return nil, errors.New("oops! ticket out of stock")
 			}
 		}
 
 		// purchase limit
-		userTicket.Count = user_request.Count
-		if eventTicket[0].PurchaseLimit > 0 {
-			if userTicket.Count > eventTicket[0].PurchaseLimit {
+		userTicket.Count = ticket_count
+		if eventTicket.PurchaseLimit > 0 {
+			if userTicket.Count > eventTicket.PurchaseLimit {
 				return nil, errors.New("oops! purchase limit reached")
 			}
 		}
 
 		// debit user wallet
 		entry_description := "ticket purchase"
-		is_debited, debited_wallet := wallets_utils.DebitUserWallet(userTicket.UserId, eventTicket[0].Price, entry_description)
+		is_debited, debited_wallet := wallets_utils.DebitUserWallet(userTicket.UserId, eventTicket.Price, entry_description)
 		if !is_debited {
 			return nil, errors.New(debited_wallet)
 		}
 
 		// update sold tickets - event ticket
-		eventTicket[0].SoldTickets += user_request.Count
-		is_updated_event_ticket, updated_event_ticket := db_utils.UpdateEventTicket(&eventTicket[0])
+		eventTicket.SoldTickets += ticket_count
+		is_updated_event_ticket, updated_event_ticket := db_utils.UpdateEventTicket(eventTicket)
 		if !is_updated_event_ticket {
 			return nil, errors.New(updated_event_ticket)
 		}
 
-		err = db.Create(&userTicket).Error
+		err := db.Create(&userTicket).Error
 
 		if err != nil {
 			return nil, errors.New(err.Error())
