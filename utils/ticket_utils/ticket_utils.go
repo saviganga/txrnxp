@@ -118,9 +118,12 @@ func CreateUserTicket(c *fiber.Ctx) (*models.UserTicket, error) {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	userTicket := new(models.UserTicket)
 	eventTicket := []models.EventTicket{}
+	events := []models.Event{}
 	privilege := authenticated_user["privilege"].(string)
 	entity := c.Get("Entity")
 	user_request := new(ticket_serializers.CreateUserTicketSerializer)
+	businesses := []models.Business{}
+	users := []models.Xuser{}
 
 	// validate request user
 	if strings.ToUpper(privilege) == "ADMIN" {
@@ -161,6 +164,23 @@ func CreateUserTicket(c *fiber.Ctx) (*models.UserTicket, error) {
 
 	if err != nil {
 		return nil, err
+	}
+
+	// credit event organiser wallet
+	entry_description := "ticket purchase commission"
+	db.Find(&events, "id = ?", eventTicket[0].EventId)
+	db.First(&businesses, "id = ?", events[0].OrganiserId)
+	if businesses[0].Id != uuid.Nil {
+		is_credited, credited_wallet := wallets_utils.CreditUserWallet(businesses[0].UserId, eventTicket[0].Price, entry_description)
+		if !is_credited {
+			return nil, errors.New(credited_wallet)
+		}
+	} else {
+		db.First(&users, "id = ?", events[0].OrganiserId)
+		is_credited, credited_wallet := wallets_utils.CreditUserWallet(users[0].Id, eventTicket[0].Price, entry_description)
+		if !is_credited {
+			return nil, errors.New(credited_wallet)
+		}
 	}
 
 	return userTicket, nil
@@ -214,7 +234,7 @@ func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTick
 		return userTicket, nil
 
 	} else {
-		
+
 		// create reference
 		reference := utils.CreateEventReference()
 		userTicket.Reference = reference
