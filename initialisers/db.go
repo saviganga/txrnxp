@@ -35,7 +35,7 @@ func ConnectDb() Dbinstance {
 		os.Exit(2)
 	}
 
-	log.Println("db connected")
+	// log.Println("db connected")
 	db.Logger = logger.Default.LogMode(logger.Error)
 
 	// log.Println("running migrations")

@@ -8,9 +8,11 @@ import (
 	"txrnxp/models"
 	"txrnxp/serializers/wallet_serializers"
 	"txrnxp/utils"
+	"txrnxp/utils/db_utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 )
 
 func CreateUserWallet(user *models.Xuser) error {
@@ -54,35 +56,15 @@ func GetUserWalletTransactions(c *fiber.Ctx) error {
 
 func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 	// initialise niggas
-	db := initialisers.ConnectDb().Db
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
-	userwallets := []models.UserWallet{}
-
+	entry_request := new(wallet_serializers.WalletManualEntrySerializer)
 	privilege := authenticated_user["privilege"].(string)
+
 	if strings.ToUpper(privilege) != "ADMIN" {
 		return false, "Oops! this feature is only available for admins"
 	}
 
-	entry_request := new(wallet_serializers.WalletManualEntrySerializer)
 	err := c.BodyParser(entry_request)
-	if err != nil {
-		return false, err.Error()
-	}
-
-	// get the user wallet
-	db.Model(&models.UserWallet{}).Joins("User").First(&userwallets, "user_wallets.user_id = ?", entry_request.UserId)
-	userwallet := userwallets[0]
-
-	old_available_balance, err := strconv.ParseFloat(userwallets[0].AvailableBalance, 64)
-	if err != nil {
-		return false, err.Error()
-	}
-	old_ledger_balance, err := strconv.ParseFloat(userwallets[0].LedgerBalance, 64)
-	if err != nil {
-		return false, err.Error()
-	}
-
-	entry_request_amount_float, err := strconv.ParseFloat(entry_request.Amount, 64)
 	if err != nil {
 		return false, err.Error()
 	}
@@ -94,41 +76,115 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 
 	if strings.ToUpper(entry_request.EntryType) == "CREDIT" {
 
-		new_available_balance := strconv.FormatFloat(old_available_balance+entry_request_amount_float, 'f', -1, 64)
-		new_ledger_balance := strconv.FormatFloat(old_ledger_balance+entry_request_amount_float, 'f', -1, 64)
 		entry_description := "Manual entry - credit"
-		err = db.Save(&models.UserWallet{Id: userwallet.Id, AvailableBalance: new_available_balance, LedgerBalance: new_ledger_balance, UserId: user_id_uuid}).Error
-		if err != nil {
-			return false, err.Error()
+		is_credited, credited_wallet := CreditUserWallet(user_id_uuid, entry_request.Amount, entry_description)
+		if !is_credited {
+			return false, credited_wallet
 		}
 
-		// update wallet transaction
-		wallet_tx := models.TransactionEntries{UserId: user_id_uuid, Amount: entry_request.Amount, Description: entry_description}
-		dbError := db.Create(&wallet_tx).Error
-		if dbError != nil {
-			return false, dbError.Error()
-		}
-
-		return true, "Successful"
+		return true, credited_wallet
 
 	} else {
 
-		new_available_balance := strconv.FormatFloat(old_available_balance-entry_request_amount_float, 'f', -1, 64)
-		new_ledger_balance := strconv.FormatFloat(old_ledger_balance-entry_request_amount_float, 'f', -1, 64)
 		entry_description := "Manual entry - debit"
-		err = db.Save(&models.UserWallet{Id: userwallet.Id, AvailableBalance: new_available_balance, LedgerBalance: new_ledger_balance, UserId: user_id_uuid}).Error
-		if err != nil {
-			return false, err.Error()
+		is_debited, debited_wallet := DebitUserWallet(user_id_uuid, entry_request.Amount, entry_description)
+		if !is_debited {
+			return false, debited_wallet
 		}
 
-		// update wallet transaction
-		wallet_tx := models.TransactionEntries{UserId: user_id_uuid, Amount: entry_request.Amount, Description: entry_description}
-		dbError := db.Create(&wallet_tx).Error
-		if dbError != nil {
-			return false, dbError.Error()
-		}
-
-		return true, "Successful"
+		return true, debited_wallet
 	}
+
+}
+
+func DebitUserWallet(user_id uuid.UUID, amount string, description string) (bool, string) {
+
+	db := initialisers.ConnectDb().Db
+	userwallets := []models.UserWallet{}
+
+	// convert amount to float
+	amount_float, err := strconv.ParseFloat(amount, 64)
+	if err != nil {
+		return false, "error converting event ticket price"
+	}
+
+	// get user wallet
+	err = db.Model(&models.UserWallet{}).Joins("User").First(&userwallets, "user_wallets.user_id = ?", user_id).Error
+	if err != nil {
+		return false, "Oops! Unable to find user wallet"
+	}
+
+	// convert wallet balance to float
+	userWallet_available_balance, err := strconv.ParseFloat(userwallets[0].AvailableBalance, 64)
+	if err != nil {
+		return false, "error converting wallet available balance"
+	}
+	userWallet_ledger_balance, err := strconv.ParseFloat(userwallets[0].LedgerBalance, 64)
+	if err != nil {
+		return false, "error converting wallet available balance"
+	}
+
+	if userWallet_available_balance < amount_float {
+		return false, "oops! insufficient wallet funds"
+	}
+
+	// debit user wallet
+	userwallets[0].AvailableBalance = strconv.FormatFloat(userWallet_available_balance-amount_float, 'f', -1, 64)
+	userwallets[0].LedgerBalance = strconv.FormatFloat(userWallet_ledger_balance-amount_float, 'f', -1, 64)
+	is_debited, debited_wallet := db_utils.UpdateWallet(&userwallets[0])
+	if !is_debited {
+		return false, debited_wallet
+	}
+	// update wallet transaction
+	wallet_tx := models.TransactionEntries{UserId: user_id, Amount: amount, Description: description, EntryType: "DEBIT"}
+	dbError := db.Create(&wallet_tx).Error
+	if dbError != nil {
+		return false, dbError.Error()
+	}
+	return true, debited_wallet
+
+}
+
+func CreditUserWallet(user_id uuid.UUID, amount string, description string) (bool, string) {
+
+	db := initialisers.ConnectDb().Db
+	userwallets := []models.UserWallet{}
+
+	// convert amount to float
+	amount_float, err := strconv.ParseFloat(amount, 64)
+	if err != nil {
+		return false, "error converting event ticket price"
+	}
+
+	// get user wallet
+	err = db.Model(&models.UserWallet{}).Joins("User").First(&userwallets, "user_wallets.user_id = ?", user_id).Error
+	if err != nil {
+		return false, "Oops! Unable to find user wallet"
+	}
+
+	// convert wallet balance to float
+	userWallet_available_balance, err := strconv.ParseFloat(userwallets[0].AvailableBalance, 64)
+	if err != nil {
+		return false, "error converting wallet available balance"
+	}
+	userWallet_ledger_balance, err := strconv.ParseFloat(userwallets[0].LedgerBalance, 64)
+	if err != nil {
+		return false, "error converting wallet available balance"
+	}
+
+	// credit user wallet
+	userwallets[0].AvailableBalance = strconv.FormatFloat(userWallet_available_balance+amount_float, 'f', -1, 64)
+	userwallets[0].LedgerBalance = strconv.FormatFloat(userWallet_ledger_balance+amount_float, 'f', -1, 64)
+	is_credited, credited_wallet := db_utils.UpdateWallet(&userwallets[0])
+	if !is_credited {
+		return false, credited_wallet
+	}
+	// update wallet transaction
+	wallet_tx := models.TransactionEntries{UserId: user_id, Amount: amount, Description: description, EntryType: "CREDIT"}
+	dbError := db.Create(&wallet_tx).Error
+	if dbError != nil {
+		return false, dbError.Error()
+	}
+	return true, credited_wallet
 
 }

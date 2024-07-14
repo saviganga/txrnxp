@@ -29,6 +29,7 @@ type TransactionEntries struct {
 	Reference   string    `gorm:"type:varchar(50);unique" json:"reference"`
 	UserId      uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
 	Amount      string    `gorm:"type:numeric(10,2);not null;default:0.00"`
+	EntryType	string		`gorm:"type:varchar(6);not null;default:DEBIT"`
 	Description string    `gorm:"type:varchar(200)" json:"description"`
 	CreatedAt   time.Time `gorm:"type:timestamp with time zone;default:now()" json:"created_at"`
 	UpdatedAt   time.Time `gorm:"type:timestamp with time zone" json:"updated_at"`

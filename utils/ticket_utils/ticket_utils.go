@@ -2,12 +2,13 @@ package ticket_utils
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/serializers/ticket_serializers"
 	"txrnxp/utils"
+	"txrnxp/utils/db_utils"
+	"txrnxp/utils/wallets_utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
@@ -96,16 +97,12 @@ func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) 
 		db.First(&businesses, "user_id = ?", user_id)
 		business_id := businesses[0].Id.String()
 		result := db.Model(&models.UserTicket{}).Joins("User").Joins("Event").Joins("EventTicket").Where("events.organiser_id = ?", business_id).Find(&user_tickets)
-		// result := db.Joins("JOIN events ON user_ticket.event_id = events.id").Where("events.organiser_id = ?", business_id).Find(&user_tickets)
 		if result.Error != nil {
 			return nil, result.Error
 		}
 	} else {
 		organiser_id := user_id
 		result := db.Model(&models.UserTicket{}).Joins("User").Find(&user_tickets, "user_tickets.user_id = ?", organiser_id)
-		// result := db.Table("user_tickets").Joins("User").Find(&user_tickets, "user_ticket.user_id = ?", organiser_id)
-		// result := db.Joins("User").Find(&user_tickets, "user_ticket.user_id == ?", organiser_id) //.Joins("Manager").Joins("Account").Find(&users, "users.id IN ?", []int{1,2,3,4,5})
-		// result := db.Joins("user").First()
 		if result.Error != nil {
 			return nil, result.Error
 		}
@@ -121,26 +118,33 @@ func CreateUserTicket(c *fiber.Ctx) (*models.UserTicket, error) {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	userTicket := new(models.UserTicket)
 	eventTicket := []models.EventTicket{}
-	userwallets := []models.UserWallet{}
-
+	events := []models.Event{}
 	privilege := authenticated_user["privilege"].(string)
+	entity := c.Get("Entity")
+	user_request := new(ticket_serializers.CreateUserTicketSerializer)
+	businesses := []models.Business{}
+	users := []models.Xuser{}
+
+	// validate request user
 	if strings.ToUpper(privilege) == "ADMIN" {
 		return nil, errors.New("oops! this feature is not available for admins")
 	}
-
-	entity := c.Get("Entity")
 	if strings.ToUpper(entity) != "" {
 		return nil, errors.New("oops! this feature is not available to businesses")
 	}
 
-	user_request := new(ticket_serializers.CreateUserTicketSerializer)
+	// validate request body
 	err := c.BodyParser(user_request)
 	if err != nil {
 		return nil, errors.New("invalid request body")
 	}
 
+	if user_request.Count <= 0 {
+		user_request.Count = 1
+	}
+
 	// get the eventTicket
-	result := db.First(&eventTicket, "id = ?", user_request.EventTicketId)
+	result := db.Find(&eventTicket, "id = ?", user_request.EventTicketId)
 	if result.Error != nil {
 		return nil, errors.New("invalid eventTicket")
 	}
@@ -149,125 +153,125 @@ func CreateUserTicket(c *fiber.Ctx) (*models.UserTicket, error) {
 	userTicket.EventTicketId = eventTicket[0].Id
 
 	// validate user
-	if user_request.UserId == "" {
-		userTicket_userId, err := utils.ConvertStringToUUID(authenticated_user["id"].(string))
-		if err != nil {
-			return nil, errors.New("invalid parsed id")
+	userTicket_userId, err := utils.ConvertStringToUUID(authenticated_user["id"].(string))
+	if err != nil {
+		return nil, errors.New("invalid parsed id")
+	}
+	userTicket.UserId = userTicket_userId
+
+	// check event ticket conditions and create user ticket
+	userTicket, err = ValidateCreateUserTicketConditions(userTicket, &eventTicket[0], user_request.Count)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// credit event organiser wallet
+	entry_description := "ticket purchase commission"
+	db.Find(&events, "id = ?", eventTicket[0].EventId)
+	db.First(&businesses, "id = ?", events[0].OrganiserId)
+	if businesses[0].Id != uuid.Nil {
+		is_credited, credited_wallet := wallets_utils.CreditUserWallet(businesses[0].UserId, eventTicket[0].Price, entry_description)
+		if !is_credited {
+			return nil, errors.New(credited_wallet)
 		}
-		userTicket.UserId = userTicket_userId
 	} else {
-		userTicket_userId, err := utils.ConvertStringToUUID(user_request.UserId)
-		if err != nil {
-			return nil, errors.New("invalid parsed id")
-		}
-		userTicket.UserId = userTicket_userId
-	}
-
-	// create reference
-	reference := utils.CreateEventReference()
-	userTicket.Reference = reference
-
-	// get user wallet
-	db.Model(&models.UserWallet{}).Joins("User").First(&userwallets, "user_wallets.user_id = ?", userTicket.UserId)
-
-	// check event ticket conditions
-	// price
-	eventTicket_float_price, err := strconv.ParseFloat(eventTicket[0].Price, 64)
-	if err != nil {
-		return nil, errors.New("error converting event ticket price")
-	}
-	userWallet_available_balance, err := strconv.ParseFloat(userwallets[0].AvailableBalance, 64)
-	if err != nil {
-		return nil, errors.New("error converting wallet available balance")
-	}
-	userWallet_ledger_balance, err := strconv.ParseFloat(userwallets[0].LedgerBalance, 64)
-	if err != nil {
-		return nil, errors.New("error converting wallet available balance")
-	}
-	if userWallet_available_balance < eventTicket_float_price {
-		return nil, errors.New("oops! insufficient wallet funds")
-	}
-
-	// event ticket limited stock/stock number
-	if eventTicket[0].IsLimitedStock {
-
-		// compare stock number and sold tickets
-		if eventTicket[0].SoldTickets >= eventTicket[0].StockNumber {
-			return nil, errors.New("oops! ticket out of stock")
+		db.First(&users, "id = ?", events[0].OrganiserId)
+		is_credited, credited_wallet := wallets_utils.CreditUserWallet(users[0].Id, eventTicket[0].Price, entry_description)
+		if !is_credited {
+			return nil, errors.New(credited_wallet)
 		}
 	}
 
-	// purchase limit
-	// count
-	// get the user ticket with this event id
-	db.Where("user_id = ? AND event_ticket_id >= ?", userTicket.UserId, userTicket.EventTicketId).Find(&userTicket)
+	return userTicket, nil
+
+}
+
+func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTicket *models.EventTicket, ticket_count int) (*models.UserTicket, error) {
+
+	db := initialisers.ConnectDb().Db
+	db.Where("user_id = ? AND event_ticket_id = ?", userTicket.UserId, userTicket.EventTicketId).Find(&userTicket)
+
 	if userTicket.Id != uuid.Nil {
 
+		// event ticket limited stock/stock number
+		if eventTicket.IsLimitedStock {
+
+			// compare stock number and sold tickets
+			if eventTicket.SoldTickets >= eventTicket.StockNumber {
+				return nil, errors.New("oops! ticket out of stock")
+			}
+		}
+
 		// purchase limit
-		if eventTicket[0].PurchaseLimit > 0 {
-			if userTicket.Count >= eventTicket[0].PurchaseLimit {
+		userTicket.Count += ticket_count
+		if eventTicket.PurchaseLimit > 0 {
+			if userTicket.Count > eventTicket.PurchaseLimit {
 				return nil, errors.New("oops! purchase limit reached")
 			}
 		}
 
 		// debit user wallet
-		new_available_balance := strconv.FormatFloat(userWallet_available_balance-eventTicket_float_price, 'f', -1, 64)
-		new_ledger_balance := strconv.FormatFloat(userWallet_ledger_balance-eventTicket_float_price, 'f', -1, 64)
 		entry_description := "ticket purchase"
-		err = db.Save(&models.UserWallet{Id: userwallets[0].Id, AvailableBalance: new_available_balance, LedgerBalance: new_ledger_balance, UserId: userTicket.UserId}).Error
-		if err != nil {
-			return nil, errors.New(err.Error())
-		}
-
-		// update wallet transaction
-		wallet_tx := models.TransactionEntries{UserId: userTicket.UserId, Amount: eventTicket[0].Price, Description: entry_description}
-		dbError := db.Create(&wallet_tx).Error
-		if dbError != nil {
-			return nil, errors.New(dbError.Error())
+		is_debited, debited_wallet := wallets_utils.DebitUserWallet(userTicket.UserId, eventTicket.Price, entry_description)
+		if !is_debited {
+			return nil, errors.New(debited_wallet)
 		}
 
 		// update sold tickets - event ticket
-		eventTicket[0].SoldTickets += 1
-		err = db.Save(&models.EventTicket{Id: eventTicket[0].Id, SoldTickets: eventTicket[0].SoldTickets, EventId: eventTicket[0].EventId, Reference: eventTicket[0].Reference, IsPaid: eventTicket[0].IsPaid, TicketType: eventTicket[0].TicketType, Price: eventTicket[0].Price}).Error
-		if err != nil {
-			return nil, errors.New(err.Error())
+		eventTicket.SoldTickets += ticket_count
+		is_updated_event_ticket, updated_event_ticket := db_utils.UpdateEventTicket(eventTicket)
+		if !is_updated_event_ticket {
+			return nil, errors.New(updated_event_ticket)
 		}
 
 		// increase userticket count
-		userTicket.Count += 1
-		err = db.Save(&models.UserTicket{Id: userTicket.Id, Count: userTicket.Count, UserId: userTicket.UserId, Reference: userTicket.Reference, EventId: userTicket.EventId, EventTicketId: userTicket.EventTicketId}).Error
-		if err != nil {
-			return nil, errors.New(err.Error())
+		is_updated_user_ticket, updated_user_ticket := db_utils.UpdateUserTicket(userTicket)
+		if !is_updated_user_ticket {
+			return nil, errors.New(updated_user_ticket)
 		}
 
 		return userTicket, nil
 
 	} else {
 
-		// debit user wallet
-		new_available_balance := strconv.FormatFloat(userWallet_available_balance-eventTicket_float_price, 'f', -1, 64)
-		new_ledger_balance := strconv.FormatFloat(userWallet_ledger_balance-eventTicket_float_price, 'f', -1, 64)
-		entry_description := "ticket purchase"
-		err = db.Save(&models.UserWallet{Id: userwallets[0].Id, AvailableBalance: new_available_balance, LedgerBalance: new_ledger_balance, UserId: userTicket.UserId}).Error
-		if err != nil {
-			return nil, errors.New(err.Error())
+		// create reference
+		reference := utils.CreateEventReference()
+		userTicket.Reference = reference
+		userTicket.EventTicketId = eventTicket.Id
+
+		// event ticket limited stock/stock number
+		if eventTicket.IsLimitedStock {
+
+			// compare stock number and sold tickets
+			if eventTicket.SoldTickets >= eventTicket.StockNumber {
+				return nil, errors.New("oops! ticket out of stock")
+			}
 		}
 
-		// update wallet transaction
-		wallet_tx := models.TransactionEntries{UserId: userTicket.UserId, Amount: eventTicket[0].Price, Description: entry_description}
-		dbError := db.Create(&wallet_tx).Error
-		if dbError != nil {
-			return nil, errors.New(dbError.Error())
+		// purchase limit
+		userTicket.Count = ticket_count
+		if eventTicket.PurchaseLimit > 0 {
+			if userTicket.Count > eventTicket.PurchaseLimit {
+				return nil, errors.New("oops! purchase limit reached")
+			}
+		}
+
+		// debit user wallet
+		entry_description := "ticket purchase"
+		is_debited, debited_wallet := wallets_utils.DebitUserWallet(userTicket.UserId, eventTicket.Price, entry_description)
+		if !is_debited {
+			return nil, errors.New(debited_wallet)
 		}
 
 		// update sold tickets - event ticket
-		eventTicket[0].SoldTickets += 1
-		err = db.Save(&models.EventTicket{Id: eventTicket[0].Id, SoldTickets: eventTicket[0].SoldTickets, EventId: eventTicket[0].EventId, Reference: eventTicket[0].Reference, IsPaid: eventTicket[0].IsPaid, TicketType: eventTicket[0].TicketType, Price: eventTicket[0].Price}).Error
-		if err != nil {
-			return nil, errors.New(err.Error())
+		eventTicket.SoldTickets += ticket_count
+		is_updated_event_ticket, updated_event_ticket := db_utils.UpdateEventTicket(eventTicket)
+		if !is_updated_event_ticket {
+			return nil, errors.New(updated_event_ticket)
 		}
 
-		err = db.Create(&userTicket).Error
+		err := db.Create(&userTicket).Error
 
 		if err != nil {
 			return nil, errors.New(err.Error())

@@ -22,9 +22,9 @@ func CreateUserAuthToken(user *models.Xuser) (string, error) {
 	db := initialisers.ConnectDb().Db
 	token := utils.GenerateRandomString(6)
 	claims := jwt.MapClaims{
-		"email": user.Email,
-		"id":    user.Id,
-		"token": token,
+		"email":     user.Email,
+		"id":        user.Id,
+		"token":     token,
 		"privilege": "USER",
 	}
 
@@ -47,9 +47,9 @@ func CreateAdminUserAuthToken(adminUser *models.AdminUser) (string, error) {
 	db := initialisers.ConnectDb().Db
 	token := utils.GenerateRandomString(6)
 	claims := jwt.MapClaims{
-		"email": adminUser.Email,
-		"id":    adminUser.Id,
-		"token": token,
+		"email":     adminUser.Email,
+		"id":        adminUser.Id,
+		"token":     token,
 		"privilege": "ADMIN",
 	}
 
@@ -88,7 +88,7 @@ func ValidateUserEmail(email string, platform string) (*models.Xuser, *models.Ad
 		}
 		return user, nil, nil
 	}
-	
+
 }
 
 func ValidateUserPassword(user *models.Xuser, password string) bool {
