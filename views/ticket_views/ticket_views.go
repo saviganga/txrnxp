@@ -66,3 +66,8 @@ func CreateUserTicket(c *fiber.Ctx) error {
 	return c.Status(200).JSON(user_ticket)
 
 }
+
+
+// validate tickets for entry
+
+// transfer tickets between users

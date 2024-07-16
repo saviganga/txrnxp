@@ -96,13 +96,18 @@ func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) 
 		businesses := []models.Business{}
 		db.First(&businesses, "user_id = ?", user_id)
 		business_id := businesses[0].Id.String()
-		result := db.Model(&models.UserTicket{}).Joins("User").Joins("Event").Joins("EventTicket").Where("events.organiser_id = ?", business_id).Find(&user_tickets)
+		result := db.Joins("JOIN Event ON Event.Id = UserTicket.EventId").Where("Event.OrganiserId = ?", business_id)
+		// result := db.Model(&models.UserTicket{}).Joins("User").Joins("Event").Joins("EventTicket").Where("events.organiser_id = ?", business_id).Find(&user_tickets)
 		if result.Error != nil {
 			return nil, result.Error
 		}
 	} else {
 		organiser_id := user_id
-		result := db.Model(&models.UserTicket{}).Joins("User").Find(&user_tickets, "user_tickets.user_id = ?", organiser_id)
+		result := db.Model(&models.UserTicket{}).
+			Preload("Event").
+			Preload("EventTicket.Event").
+			Joins("User").
+			Find(&user_tickets, "user_tickets.user_id = ?", organiser_id)
 		if result.Error != nil {
 			return nil, result.Error
 		}
