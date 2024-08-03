@@ -2,6 +2,7 @@ package ticket_utils
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"txrnxp/initialisers"
 	"txrnxp/models"
@@ -216,9 +217,18 @@ func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTick
 			}
 		}
 
+		// calculate ticket price based on count
+		// convert amount to float
+		amount_float, err := strconv.ParseFloat(eventTicket.Price, 64)
+		if err != nil {
+			return nil, errors.New("error converting event ticket price")
+		}
+
+		amount := float64(ticket_count) * amount_float
+
 		// debit user wallet
 		entry_description := "ticket purchase"
-		is_debited, debited_wallet := wallets_utils.DebitUserWallet(userTicket.UserId, eventTicket.Price, entry_description)
+		is_debited, debited_wallet := wallets_utils.DebitUserWallet(userTicket.UserId, amount, entry_description)
 		if !is_debited {
 			return nil, errors.New(debited_wallet)
 		}
@@ -262,9 +272,16 @@ func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTick
 			}
 		}
 
+		amount_float, err := utils.ConvertStringToFloat(eventTicket.Price)
+		if err != nil {
+			return nil, err
+		}
+
+		amount := amount_float * float64(ticket_count)
+
 		// debit user wallet
 		entry_description := "ticket purchase"
-		is_debited, debited_wallet := wallets_utils.DebitUserWallet(userTicket.UserId, eventTicket.Price, entry_description)
+		is_debited, debited_wallet := wallets_utils.DebitUserWallet(userTicket.UserId, amount, entry_description)
 		if !is_debited {
 			return nil, errors.New(debited_wallet)
 		}
@@ -276,7 +293,7 @@ func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTick
 			return nil, errors.New(updated_event_ticket)
 		}
 
-		err := db.Create(&userTicket).Error
+		err = db.Create(&userTicket).Error
 
 		if err != nil {
 			return nil, errors.New(err.Error())
