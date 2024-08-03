@@ -88,7 +88,7 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 	} else {
 
 		amount_float, err := utils.ConvertStringToFloat(entry_request.Amount)
-		if err != nil {
+		if err != nil || amount_float == 0.0  {
 			return false, err.Error()
 		}
 

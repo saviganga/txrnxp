@@ -48,3 +48,8 @@ func ConnectDb() Dbinstance {
 	return DB
 
 }
+
+
+func OrderByCreatedAtDesc(db *gorm.DB) *gorm.DB {
+	return db.Order("created_at desc")
+}

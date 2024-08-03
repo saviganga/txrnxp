@@ -2,7 +2,6 @@ package ticket_utils
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 	"txrnxp/initialisers"
 	"txrnxp/models"
@@ -104,11 +103,22 @@ func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) 
 		}
 	} else {
 		organiser_id := user_id
+
 		result := db.Model(&models.UserTicket{}).
 			Preload("Event").
 			Preload("EventTicket.Event").
 			Joins("User").
-			Find(&user_tickets, "user_tickets.user_id = ?", organiser_id)
+			Where("user_tickets.user_id = ?", organiser_id).
+			Order("created_at desc").
+			Find(&user_tickets)
+
+
+		// result := db.Model(&models.UserTicket{}).
+		// 	Preload("Event").
+		// 	Preload("EventTicket.Event").
+		// 	Joins("User").
+		// 	Find(&user_tickets, "user_tickets.user_id = ?", organiser_id).
+		// 	Order("created_at desc")
 		if result.Error != nil {
 			return nil, result.Error
 		}
@@ -219,11 +229,10 @@ func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTick
 
 		// calculate ticket price based on count
 		// convert amount to float
-		amount_float, err := strconv.ParseFloat(eventTicket.Price, 64)
-		if err != nil {
-			return nil, errors.New("error converting event ticket price")
+		amount_float, err := utils.ConvertStringToFloat(eventTicket.Price)
+		if err != nil || amount_float == 0.0 {
+			return nil, errors.New("oops! an error occured")
 		}
-
 		amount := float64(ticket_count) * amount_float
 
 		// debit user wallet
@@ -273,8 +282,8 @@ func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTick
 		}
 
 		amount_float, err := utils.ConvertStringToFloat(eventTicket.Price)
-		if err != nil {
-			return nil, err
+		if err != nil || amount_float == 0.0 {
+			return nil, errors.New("oops! an error occured")
 		}
 
 		amount := amount_float * float64(ticket_count)
