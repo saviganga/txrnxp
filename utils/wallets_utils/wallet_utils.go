@@ -47,16 +47,16 @@ func GetUserWalletTransactions(c *fiber.Ctx) error {
 	wallet_tx := []models.TransactionEntries{}
 	privilege := authenticated_user["privilege"]
 	if privilege == "ADMIN" {
-		db.Model(&models.TransactionEntries{}).Joins("User").Find(&wallet_tx)
+		db.Model(&models.TransactionEntries{}).Joins("User").Find(&wallet_tx).Order("created_at DESC")
 	} else {
-		db.Find(&wallet_tx, "user_id = ?", authenticated_user["id"])
+		db.Where("user_id = ?", authenticated_user["id"]).Joins("User").Order("created_at DESC").Find(&wallet_tx)
 	}
 	return c.Status(200).JSON(wallet_tx)
 
 }
 
 func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
-	// initialise niggas
+	// mobilize men !
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	entry_request := new(wallet_serializers.WalletManualEntrySerializer)
 	privilege := authenticated_user["privilege"].(string)
@@ -88,7 +88,7 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 	} else {
 
 		amount_float, err := utils.ConvertStringToFloat(entry_request.Amount)
-		if err != nil || amount_float == 0.0  {
+		if err != nil || amount_float == 0.0 {
 			return false, err.Error()
 		}
 
@@ -123,7 +123,6 @@ func DebitUserWallet(user_id uuid.UUID, amount float64, description string) (boo
 	if err != nil {
 		return false, "error converting wallet available balance"
 	}
-
 
 	if userWallet_available_balance < amount {
 		return false, "oops! insufficient wallet funds"
@@ -189,5 +188,51 @@ func CreditUserWallet(user_id uuid.UUID, amount string, description string) (boo
 		return false, dbError.Error()
 	}
 	return true, credited_wallet
+
+}
+
+func WalletTransfer(c *fiber.Ctx) (bool, string) {
+	db := initialisers.ConnectDb().Db
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	transfer_request := new(wallet_serializers.WalletTransferSerializer)
+	privilege := authenticated_user["privilege"].(string)
+	users := []models.Xuser{}
+
+	if strings.ToUpper(privilege) != "USER" {
+		return false, "Oops! this feature is only available for users"
+	}
+
+	err := c.BodyParser(transfer_request)
+	if err != nil {
+		return false, err.Error()
+	}
+
+	sender_id_string := authenticated_user["id"].(string)
+	sender_id_uuid, err := utils.ConvertStringToUUID(sender_id_string)
+	if err != nil {
+		return false, err.Error()
+	}
+
+	db.First(&users, "email = ?", transfer_request.ReceiverEmail)
+	receiver_id_uuid := users[0].Id
+
+	amount_float, err := utils.ConvertStringToFloat(transfer_request.Amount)
+	if err != nil || amount_float == 0.0 {
+		return false, err.Error()
+	}
+
+	debit_entry_description := fmt.Sprintf("Wallet transfer of %.2f to %s", amount_float, transfer_request.ReceiverEmail)
+	is_debited, debited_wallet := DebitUserWallet(sender_id_uuid, amount_float, debit_entry_description)
+	if !is_debited {
+		return false, debited_wallet
+	}
+
+	credit_entry_description := fmt.Sprintf("Wallet transfer of %.2f from %s", amount_float, users[0].Email)
+	is_credited, credited_wallet := CreditUserWallet(receiver_id_uuid, transfer_request.Amount, credit_entry_description)
+	if !is_credited {
+		return false, credited_wallet
+	}
+
+	return true, "Wallet transfer successful"
 
 }

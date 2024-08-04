@@ -27,3 +27,14 @@ func AdminTopupWallet(c *fiber.Ctx) error {
 func GetUserWalletTransactions(c *fiber.Ctx) error {
 	return wallets_utils.GetUserWalletTransactions(c)
 }
+
+
+func WalletTransfer(c *fiber.Ctx) error {
+	is_transferred, wallet_transfer := wallets_utils.WalletTransfer(c)
+	if !is_transferred {
+		return c.Status(400).JSON(fiber.Map{
+			"message": wallet_transfer,
+		})
+	}
+	return c.Status(200).JSON(wallet_transfer)
+}
