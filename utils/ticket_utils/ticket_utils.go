@@ -111,14 +111,7 @@ func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) 
 			Where("user_tickets.user_id = ?", organiser_id).
 			Order("created_at desc").
 			Find(&user_tickets)
-
-
-		// result := db.Model(&models.UserTicket{}).
-		// 	Preload("Event").
-		// 	Preload("EventTicket.Event").
-		// 	Joins("User").
-		// 	Find(&user_tickets, "user_tickets.user_id = ?", organiser_id).
-		// 	Order("created_at desc")
+			
 		if result.Error != nil {
 			return nil, result.Error
 		}
