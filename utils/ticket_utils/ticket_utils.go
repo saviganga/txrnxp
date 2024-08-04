@@ -111,7 +111,7 @@ func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) 
 			Where("user_tickets.user_id = ?", organiser_id).
 			Order("created_at desc").
 			Find(&user_tickets)
-			
+
 		if result.Error != nil {
 			return nil, result.Error
 		}
@@ -303,5 +303,94 @@ func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTick
 
 		return userTicket, nil
 	}
+
+}
+
+func TransferUserTicket(c *fiber.Ctx) (bool, string) {
+	db := initialisers.ConnectDb().Db
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	transfer_request := new(ticket_serializers.TransferUserTicketSerializer)
+	privilege := authenticated_user["privilege"].(string)
+	users := []models.Xuser{}
+	user_tickets := []models.UserTicket{}
+	userTicket := new(models.UserTicket)
+	userTickets := []models.UserTicket{}
+
+	if strings.ToUpper(privilege) != "USER" {
+		return false, "Oops! this feature is only available for users"
+	}
+
+	err := c.BodyParser(transfer_request)
+	if err != nil {
+		return false, err.Error()
+	}
+
+	if transfer_request.ReceiverEmail == authenticated_user["email"].(string) {
+		return false, "Oops! you cannot transfer to yourself."
+	}
+
+	// get the sender id
+	sender_id_string := authenticated_user["id"].(string)
+	sender_id_uuid, err := utils.ConvertStringToUUID(sender_id_string)
+	if err != nil {
+		return false, err.Error()
+	}
+
+	// get the receiver id
+	db.First(&users, "email = ?", transfer_request.ReceiverEmail)
+	receiver_id_uuid := users[0].Id
+
+	// find the userticket
+	db.First(&user_tickets, "reference = ?", transfer_request.UserTicketReference)
+
+	// validate user ticket values
+	user_ticket := user_tickets[0]
+
+	// user ticket owner
+	if user_ticket.UserId != sender_id_uuid {
+		return false, "Oops! You do not have permission to transfer this ticket"
+	}
+
+	// user ticket count
+	if user_ticket.Count < transfer_request.Count {
+		return false, "Oops! Insufficient tickets"
+	}
+
+	// check if the receiver already has usertickets for the event ticket
+	db.Where("user_id = ? AND event_ticket_id = ?", receiver_id_uuid, userTicket.EventTicketId).Find(&userTickets)
+	
+	if userTickets[0].Id != uuid.Nil {
+		userTickets[0].EventId = user_ticket.EventId
+		userTickets[0].EventTicketId = user_ticket.EventTicketId
+		userTickets[0].UserId = receiver_id_uuid
+		userTickets[0].Count += transfer_request.Count
+		is_updated_user_ticket, updated_user_ticket := db_utils.UpdateUserTicket(&userTickets[0])
+		if !is_updated_user_ticket {
+			return false, updated_user_ticket
+		}
+	} else {
+		// create user ticket reference
+		reference := utils.CreateEventReference()
+
+		// fill new userTicket values
+		userTicket.EventId = user_ticket.EventId
+		userTicket.EventTicketId = user_ticket.EventTicketId
+		userTicket.UserId = receiver_id_uuid
+		userTicket.Reference = reference
+		userTicket.Count += transfer_request.Count
+		err = db.Create(&userTicket).Error
+		if err != nil {
+			return false, err.Error()
+		}
+	}
+
+	// decrease userticket count
+	user_ticket.Count -= transfer_request.Count
+	is_updated_user_ticket, updated_user_ticket := db_utils.UpdateUserTicket(&user_ticket)
+	if !is_updated_user_ticket {
+		return false, updated_user_ticket
+	}
+
+	return true, "Transfer successful"
 
 }

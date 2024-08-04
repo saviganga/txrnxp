@@ -5,3 +5,9 @@ type CreateUserTicketSerializer struct {
 	UserId string `json:"user_id"`
 	Count int `json:"count"`
 }
+
+type TransferUserTicketSerializer struct {
+	UserTicketReference string `json:"ticket_reference" validate:"required"`
+	ReceiverEmail string `json:"receiver_email" validate:"required"`
+	Count int `json:"count" validate:"required"`
+}
