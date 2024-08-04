@@ -66,3 +66,19 @@ func CreateUserTicket(c *fiber.Ctx) error {
 	return c.Status(200).JSON(user_ticket)
 
 }
+
+
+// transfer tickets between users
+func TransferUserTicket(c *fiber.Ctx) error {
+
+	is_transferred, ticket_transfer := ticket_utils.TransferUserTicket(c)
+	if !is_transferred {
+		return c.Status(400).JSON(fiber.Map{
+			"message": ticket_transfer,
+		})
+	}
+	return c.Status(200).JSON(ticket_transfer)
+
+}
+
+// VALIDATE TICKETS FOR ENTRY

@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"math/rand"
+	"strconv"
 
 	"github.com/google/uuid"
 )
@@ -28,4 +29,15 @@ func ConvertStringToUUID(s string) (uuid.UUID, error) {
 
 func CreateEventReference() string {
 	return GenerateRandomString((6))
+}
+
+func ConvertStringToFloat(amount string) (float64, error) {
+	// convert amount to float
+	amount_float, err := strconv.ParseFloat(amount, 64)
+	if err != nil {
+		return 0.0, errors.New("error converting event ticket price")
+	}
+
+	return amount_float, nil
+
 }
