@@ -67,7 +67,6 @@ func CreateUserTicket(c *fiber.Ctx) error {
 
 }
 
-
 // transfer tickets between users
 func TransferUserTicket(c *fiber.Ctx) error {
 
