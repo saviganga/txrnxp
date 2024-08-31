@@ -197,6 +197,7 @@ func WalletTransfer(c *fiber.Ctx) (bool, string) {
 	transfer_request := new(wallet_serializers.WalletTransferSerializer)
 	privilege := authenticated_user["privilege"].(string)
 	users := []models.Xuser{}
+	sender_email := authenticated_user["email"]
 
 	if strings.ToUpper(privilege) != "USER" {
 		return false, "Oops! this feature is only available for users"
@@ -205,6 +206,10 @@ func WalletTransfer(c *fiber.Ctx) (bool, string) {
 	err := c.BodyParser(transfer_request)
 	if err != nil {
 		return false, err.Error()
+	}
+
+	if sender_email == strings.ToLower(transfer_request.ReceiverEmail) {
+		return false, "Oops! You cannot transfer funds to youeself"
 	}
 
 	sender_id_string := authenticated_user["id"].(string)
