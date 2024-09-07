@@ -32,12 +32,15 @@ func GetUserWallets(c *fiber.Ctx) error {
 	db := initialisers.ConnectDb().Db
 	userwallets := []models.UserWallet{}
 	privilege := authenticated_user["privilege"]
+	message := ""
 	if privilege == "ADMIN" {
 		db.Model(&models.UserWallet{}).Joins("User").Find(&userwallets)
+		message = "Succesfully fetched wallets"
 	} else {
 		db.Model(&models.UserWallet{}).Joins("User").First(&userwallets, "user_wallets.user_id = ?", authenticated_user["id"])
+		message = "Succesfully fetched wallet"
 	}
-	return c.Status(200).JSON(userwallets)
+	return utils.SuccessResponse(c, userwallets, message)
 
 }
 
@@ -51,7 +54,7 @@ func GetUserWalletTransactions(c *fiber.Ctx) error {
 	} else {
 		db.Where("user_id = ?", authenticated_user["id"]).Joins("User").Order("created_at DESC").Find(&wallet_tx)
 	}
-	return c.Status(200).JSON(wallet_tx)
+	return utils.SuccessResponse(c, wallet_tx, "Successfully fetched wallet transactions")
 
 }
 
@@ -197,6 +200,7 @@ func WalletTransfer(c *fiber.Ctx) (bool, string) {
 	transfer_request := new(wallet_serializers.WalletTransferSerializer)
 	privilege := authenticated_user["privilege"].(string)
 	users := []models.Xuser{}
+	sender_email := authenticated_user["email"]
 
 	if strings.ToUpper(privilege) != "USER" {
 		return false, "Oops! this feature is only available for users"
@@ -205,6 +209,10 @@ func WalletTransfer(c *fiber.Ctx) (bool, string) {
 	err := c.BodyParser(transfer_request)
 	if err != nil {
 		return false, err.Error()
+	}
+
+	if sender_email == strings.ToLower(transfer_request.ReceiverEmail) {
+		return false, "Oops! You cannot transfer funds to youeself"
 	}
 
 	sender_id_string := authenticated_user["id"].(string)

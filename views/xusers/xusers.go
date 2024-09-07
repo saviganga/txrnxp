@@ -1,6 +1,7 @@
 package xusers
 
 import (
+	"txrnxp/utils"
 	"txrnxp/utils/xusers_utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -15,11 +16,9 @@ func CreateUsers(c *fiber.Ctx) error {
 	user, err := xusers_utils.CreateUser(c)
 
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return utils.BadRequestResponse(c, err.Error())
 	}
-	return c.Status(200).JSON(user)
+	return utils.CreatedResponse(c, user, "Successfully created user")
 }
 
 func GetUsers(c *fiber.Ctx) error {

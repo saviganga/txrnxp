@@ -2,6 +2,7 @@ package auth
 
 import (
 	"txrnxp/serializers/auth"
+	"txrnxp/utils"
 	"txrnxp/utils/auth_utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -15,24 +16,18 @@ func Login(c *fiber.Ctx) error {
 
 	platform := c.Get("Platform")
 	if platform == "" {
-		return c.Status(400).JSON(fiber.Map{
-			"message": "pass your platform",
-		})
+		return utils.BadRequestResponse(c, "pass your platform")
 	}
 	user_request := new(auth.UserLoginSerializer)
 	err := c.BodyParser(user_request)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return utils.BadRequestResponse(c, err.Error())
 	}
 
 	// validate user email
 	user, admin, err := auth_utils.ValidateUserEmail(user_request.Email, platform)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return utils.BadRequestResponse(c, err.Error())
 	}
 
 	if user != nil {
@@ -40,50 +35,40 @@ func Login(c *fiber.Ctx) error {
 		// validate password
 		is_password := auth_utils.ValidateUserPassword(user, user_request.Password)
 		if !is_password {
-			return c.Status(400).JSON(fiber.Map{
-				"message": "invalid credentials",
-			})
+			return utils.BadRequestResponse(c, "Invalid credentials")
 		}
 
 		// auth token
 		token, err := auth_utils.CreateUserAuthToken(user)
 		if err != nil {
-			return c.Status(400).JSON(fiber.Map{
-				"message": err.Error(),
-			})
+			return utils.BadRequestResponse(c, err.Error())
 		}
 
 		// return authenticated user and token
 		respMessage := "User successfully authenticated"
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"message": respMessage,
-			"token":   token,
-		})
+		return utils.SuccessResponse(c, token, respMessage)
+		// return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		// 	"message": respMessage,
+		// 	"token":   token,
+		// })
 
 	} else {
 
 		// validate password
 		is_password := auth_utils.ValidateAdminUserPassword(admin, user_request.Password)
 		if !is_password {
-			return c.Status(400).JSON(fiber.Map{
-				"message": "invalid credentials",
-			})
+			return utils.BadRequestResponse(c, "Invalid credentials")
 		}
 
 		// auth token
 		token, err := auth_utils.CreateAdminUserAuthToken(admin)
 		if err != nil {
-			return c.Status(400).JSON(fiber.Map{
-				"message": err.Error(),
-			})
+			return utils.BadRequestResponse(c, err.Error())
 		}
 
 		// return authenticated user and token
 		respMessage := "User successfully authenticated"
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"message": respMessage,
-			"token":   token,
-		})
+		return utils.SuccessResponse(c, token, respMessage)
 
 	}
 

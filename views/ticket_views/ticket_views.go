@@ -1,6 +1,7 @@
 package ticket_views
 
 import (
+	"txrnxp/utils"
 	"txrnxp/utils/ticket_utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,11 +17,9 @@ func CreateEventTicket(c *fiber.Ctx) error {
 	event, err := ticket_utils.CreateEventTicket(c)
 
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return utils.BadRequestResponse(c, err.Error())
 	}
-	return c.Status(201).JSON(event)
+	return utils.CreatedResponse(c, event, "Successfully created event")
 }
 
 func GetEventTickets(c *fiber.Ctx) error {
@@ -30,12 +29,10 @@ func GetEventTickets(c *fiber.Ctx) error {
 
 	event_tickets, err := ticket_utils.GetEventTickets(user_id, entity)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"message": err,
-		})
+		return utils.BadRequestResponse(c, err.Error())
 	}
 
-	return c.Status(200).JSON(event_tickets)
+	return utils.SuccessResponse(c, event_tickets, "Successfully fetched event tickets")
 
 }
 
@@ -46,38 +43,31 @@ func GetUserTickets(c *fiber.Ctx) error {
 
 	user_tickets, err := ticket_utils.GetUserTickets(user_id, entity)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"message": err,
-		})
+		return utils.BadRequestResponse(c, err.Error())
 	}
 
-	return c.Status(200).JSON(user_tickets)
+	return utils.SuccessResponse(c, user_tickets, "Successfully fetched user tickets")
 
 }
 
 func CreateUserTicket(c *fiber.Ctx) error {
 	user_ticket, err := ticket_utils.CreateUserTicket(c)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return utils.BadRequestResponse(c, err.Error())
 	}
 
-	return c.Status(200).JSON(user_ticket)
+	return utils.SuccessResponse(c, user_ticket, "Success")
 
 }
-
 
 // transfer tickets between users
 func TransferUserTicket(c *fiber.Ctx) error {
 
 	is_transferred, ticket_transfer := ticket_utils.TransferUserTicket(c)
 	if !is_transferred {
-		return c.Status(400).JSON(fiber.Map{
-			"message": ticket_transfer,
-		})
+		return utils.BadRequestResponse(c, ticket_transfer)
 	}
-	return c.Status(200).JSON(ticket_transfer)
+	return utils.NoDataSuccessResponse(c, "Success")
 
 }
 

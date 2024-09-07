@@ -20,5 +20,6 @@ type Business struct {
 func (business *Business) BeforeCreate(*gorm.DB) (err error) {
 
 	business.Id = uuid.New()
+	business.Country = "NGA"
 	return
 }
