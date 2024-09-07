@@ -4,6 +4,7 @@ import (
 	"errors"
 	"txrnxp/initialisers"
 	"txrnxp/models"
+	"txrnxp/utils"
 	"txrnxp/utils/wallets_utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -42,5 +43,5 @@ func GetUsers(c *fiber.Ctx) error {
 	} else {
 		db.First(&users, "id = ?", authenticated_user["id"])
 	}
-	return c.Status(200).JSON(users)
+	return utils.SuccessResponse(c, users, "Successfully fetched users")
 }
