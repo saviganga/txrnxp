@@ -4,6 +4,7 @@ import (
 	"errors"
 	"txrnxp/initialisers"
 	"txrnxp/models"
+	"txrnxp/utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
@@ -31,5 +32,5 @@ func GetAdminUsers(c *fiber.Ctx) error {
 	db := initialisers.ConnectDb().Db
 	users := []models.AdminUser{}
 	db.First(&users, "id = ?", authenticated_user["id"])
-	return c.Status(200).JSON(users)
+	return utils.SuccessResponse(c, users, "Successfully fetched users")
 }
