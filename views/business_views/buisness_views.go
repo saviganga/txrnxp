@@ -3,6 +3,7 @@ package business_views
 import (
 	"txrnxp/initialisers"
 	"txrnxp/models"
+	"txrnxp/utils"
 	"txrnxp/utils/business_utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -18,11 +19,9 @@ func CreateBusiness(c *fiber.Ctx) error {
 	business, err := business_utils.CreateBusiness(c)
 
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return utils.BadRequestResponse(c, err.Error())
 	}
-	return c.Status(200).JSON(business)
+	return utils.CreatedResponse(c, business, "Successfully created business")
 }
 
 func GetBusiness(c *fiber.Ctx) error {
@@ -35,6 +34,6 @@ func GetBusiness(c *fiber.Ctx) error {
 	} else {
 		db.Model(&models.Business{}).Joins("User").First(&businesses, "businesses.user_id = ?", authenticated_user["id"]).Order("businesses.created_at DESC")
 	}
-	return c.Status(200).JSON(businesses)
+	return utils.SuccessResponse(c, businesses, "Successfully fetched businesses")
 
 }
