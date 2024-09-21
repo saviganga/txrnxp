@@ -82,8 +82,10 @@ func GetEventByReference(c *fiber.Ctx) (*event_serializers.EventDetailSerializer
 
 	if is_business {
 		organiser_details["name"] = organiser_business[0].Name
+		organiser_details["is_business"] = true
 	} else {
 		organiser_details["name"] = organiser_user[0].UserName
+		organiser_details["is_business"] = false
 	}
 
 	// get the event ticket details
