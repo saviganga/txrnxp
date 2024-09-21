@@ -7,6 +7,7 @@ import (
 	"strings"
 	"txrnxp/initialisers"
 	"txrnxp/models"
+	"txrnxp/serializers/user_serializers"
 	"txrnxp/serializers/wallet_serializers"
 	"txrnxp/utils"
 	"txrnxp/utils/db_utils"
@@ -31,16 +32,43 @@ func GetUserWallets(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
 	userwallets := []models.UserWallet{}
+	serialized_wallet := new(wallet_serializers.WalletSerializer)
+	serialized_wallets := []wallet_serializers.WalletSerializer{}
+	serialized_user := new(user_serializers.UserSerializer)
 	privilege := authenticated_user["privilege"]
 	message := ""
 	if privilege == "ADMIN" {
-		db.Model(&models.UserWallet{}).Joins("User").Find(&userwallets)
+		db.Model(&models.UserWallet{}).Joins("User").Order("created_at desc").Find(&userwallets)
 		message = "Succesfully fetched wallets"
 	} else {
-		db.Model(&models.UserWallet{}).Joins("User").First(&userwallets, "user_wallets.user_id = ?", authenticated_user["id"])
+		db.Model(&models.UserWallet{}).Joins("User").Order("created_at desc").First(&userwallets, "user_wallets.user_id = ?", authenticated_user["id"])
 		message = "Succesfully fetched wallet"
 	}
-	return utils.SuccessResponse(c, userwallets, message)
+	for _, wallet := range userwallets {
+
+		serialized_user.Id = wallet.User.Id
+		serialized_user.Email = wallet.User.Email
+		serialized_user.UserName = wallet.User.UserName
+		serialized_user.FirstName = wallet.User.FirstName
+		serialized_user.LastName = wallet.User.LastName
+		serialized_user.PhoneNumber = wallet.User.PhoneNumber
+		serialized_user.IsActive = wallet.User.IsActive
+		serialized_user.IsBusiness = wallet.User.IsBusiness
+		serialized_user.LastLogin = wallet.User.LastLogin
+		serialized_user.CreatedAt = wallet.User.CreatedAt
+		serialized_user.UpdatedAt = wallet.User.UpdatedAt
+
+		serialized_wallet.Id = wallet.Id
+		serialized_wallet.User = *serialized_user
+		serialized_wallet.AvailableBalance = wallet.AvailableBalance
+		serialized_wallet.LedgerBalance = wallet.LedgerBalance
+		serialized_wallet.CreatedAt = wallet.CreatedAt
+		serialized_wallet.UpdatedAt = wallet.UpdatedAt
+
+		serialized_wallets = append(serialized_wallets, *serialized_wallet)
+
+	}
+	return utils.SuccessResponse(c, serialized_wallets, message)
 
 }
 

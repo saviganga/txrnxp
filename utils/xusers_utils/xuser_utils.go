@@ -55,9 +55,9 @@ func GetUsers(c *fiber.Ctx) error {
 	serialized_users := []user_serializers.UserSerializer{}
 	privilege := authenticated_user["privilege"]
 	if privilege == "ADMIN" {
-		db.Find(&users)
+		db.Order("created_at desc").Find(&users)
 	} else {
-		db.First(&users, "id = ?", authenticated_user["id"])
+		db.Order("created_at desc").First(&users, "id = ?", authenticated_user["id"])
 	}
 	for _, user := range users {
 		serialized_user.Id = user.Id
