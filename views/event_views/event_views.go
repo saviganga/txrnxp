@@ -82,5 +82,5 @@ func GetEventByReference(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.BadRequestResponse(c, err.Error())
 	}
-	return utils.CreatedResponse(c, event, "Successfully fetched event")
+	return utils.SuccessResponse(c, event, "Successfully fetched event")
 }
