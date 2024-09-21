@@ -14,7 +14,7 @@ type UserSerializer struct {
 	LastName    string    `json:"last_name"`
 	PhoneNumber string    `json:"phone_number"`
 	IsActive    bool      `json:"is_active" validate:"required"`
-	IsBusiness  bool      `json:"is_business" validate:"required"`
+	IsBusiness  bool      `json:"is_business"`
 	LastLogin   time.Time `json:"last_login" validate:"required"`
 	CreatedAt   time.Time `json:"created_at" validate:"required"`
 	UpdatedAt   time.Time `json:"updated_at" validate:"required"`
