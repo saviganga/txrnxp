@@ -13,11 +13,12 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-func CreateEvent(c *fiber.Ctx) (*models.Event, error) {
+func CreateEvent(c *fiber.Ctx) (*event_serializers.EventDetailSerializer, error) {
 
 	db := initialisers.ConnectDb().Db
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	event := new(models.Event)
+	event_serializer := new(event_serializers.EventDetailSerializer)
 
 	// check the entity and update the organiser id
 	entity := c.Get("Entity")
@@ -46,7 +47,21 @@ func CreateEvent(c *fiber.Ctx) (*models.Event, error) {
 		return nil, errors.New(err.Error())
 	}
 
-	return event, nil
+	// fill in the serializer
+	event_serializer.EventId = event.Id
+	event_serializer.Reference = event.Reference
+	event_serializer.Name = event.Name
+	event_serializer.EventType = event.EventType
+	event_serializer.Description = event.Description
+	event_serializer.Address = event.Address
+	event_serializer.Category = event.Category
+	event_serializer.Duration = event.Duration
+	event_serializer.StartTime = event.StartTime
+	event_serializer.EndTime = event.EndTime
+	event_serializer.CreatedAt = event.CreatedAt
+	event_serializer.UpdatedAt = event.UpdatedAt
+
+	return event_serializer, nil
 }
 
 func GetEventByReference(c *fiber.Ctx) (*event_serializers.EventDetailSerializer, error) {

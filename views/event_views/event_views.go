@@ -67,6 +67,7 @@ func GetEvents(c *fiber.Ctx) error {
 
 func CreateEvents(c *fiber.Ctx) error {
 
+
 	event, err := event_utils.CreateEvent(c)
 
 	if err != nil {
