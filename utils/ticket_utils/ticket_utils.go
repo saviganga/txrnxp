@@ -65,24 +65,35 @@ func CreateEventTicket(c *fiber.Ctx) (*models.EventTicket, error) {
 	return eventTicket, nil
 }
 
-func GetEventTickets(user_id string, entity string) ([]models.EventTicket, error) {
+func GetEventTickets(user_id string, entity string, c *fiber.Ctx) ([]models.EventTicket, error) {
 	db := initialisers.ConnectDb().Db
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	event_tickets := []models.EventTicket{}
+	privilege := authenticated_user["privilege"].(string)
 
-	if strings.ToUpper(entity) == "BUSINESS" {
-		businesses := []models.Business{}
-		db.First(&businesses, "user_id = ?", user_id)
-		business_id := businesses[0].Id.String()
-		result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Where("events.organiser_id = ?", business_id).Find(&event_tickets)
+	if strings.ToUpper(privilege) == "ADMIN" {
+		result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Order("created_at desc").Find(&event_tickets)
 		if result.Error != nil {
 			return nil, result.Error
 		}
 	} else {
-		organiser_id := user_id
-		result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Where("events.organiser_id = ?", organiser_id).Find(&event_tickets)
-		if result.Error != nil {
-			return nil, result.Error
+
+		if strings.ToUpper(entity) == "BUSINESS" {
+			businesses := []models.Business{}
+			db.First(&businesses, "user_id = ?", user_id)
+			business_id := businesses[0].Id.String()
+			result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Where("events.organiser_id = ?", business_id).Find(&event_tickets)
+			if result.Error != nil {
+				return nil, result.Error
+			}
+		} else {
+			organiser_id := user_id
+			result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Where("events.organiser_id = ?", organiser_id).Find(&event_tickets)
+			if result.Error != nil {
+				return nil, result.Error
+			}
 		}
+
 	}
 
 	return event_tickets, nil
