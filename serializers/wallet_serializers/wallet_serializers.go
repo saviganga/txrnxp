@@ -16,6 +16,16 @@ type WalletSerializer struct {
 	UpdatedAt        time.Time                       `json:"updated_at" validate:"required"`
 }
 
+type ReadWalletEntrySerializer struct {
+	Id               uuid.UUID                       `json:"id" validate:"required"`
+	User             user_serializers.UserSerializer `json:"user" validate:"required"`
+	Reference string                          `json:"reference" validate:"required"`
+	EntryType    string                          `json:"entry_type" validate:"required"`
+	Description    string                          `json:"description" validate:"required"`
+	CreatedAt        time.Time                       `json:"created_at" validate:"required"`
+	UpdatedAt        time.Time                       `json:"updated_at" validate:"required"`
+}
+
 type WalletManualEntrySerializer struct {
 	UserId    string `json:"user_id" validate:"required"`
 	Amount    string `json:"amount" validate:"required"`

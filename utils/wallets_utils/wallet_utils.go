@@ -76,13 +76,40 @@ func GetUserWalletTransactions(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
 	wallet_tx := []models.TransactionEntries{}
+	serialized_wallet_tx := new(wallet_serializers.ReadWalletEntrySerializer)
+	serialized_wallet_txs := []wallet_serializers.ReadWalletEntrySerializer{}
+	serialized_user := new(user_serializers.UserSerializer)
 	privilege := authenticated_user["privilege"]
 	if privilege == "ADMIN" {
-		db.Model(&models.TransactionEntries{}).Joins("User").Find(&wallet_tx).Order("created_at DESC")
+		db.Model(&models.TransactionEntries{}).Joins("User").Order("created_at desc").Find(&wallet_tx).Order("created_at DESC")
 	} else {
-		db.Where("user_id = ?", authenticated_user["id"]).Joins("User").Order("created_at DESC").Find(&wallet_tx)
+		db.Where("user_id = ?", authenticated_user["id"]).Joins("User").Order("created_at DESC").Order("created_at desc").Find(&wallet_tx)
 	}
-	return utils.SuccessResponse(c, wallet_tx, "Successfully fetched wallet transactions")
+	for _, tx := range wallet_tx {
+
+		serialized_user.Id = tx.User.Id
+		serialized_user.Email = tx.User.Email
+		serialized_user.UserName = tx.User.UserName
+		serialized_user.FirstName = tx.User.FirstName
+		serialized_user.LastName = tx.User.LastName
+		serialized_user.PhoneNumber = tx.User.PhoneNumber
+		serialized_user.IsActive = tx.User.IsActive
+		serialized_user.IsBusiness = tx.User.IsBusiness
+		serialized_user.LastLogin = tx.User.LastLogin
+		serialized_user.CreatedAt = tx.User.CreatedAt
+		serialized_user.UpdatedAt = tx.User.UpdatedAt
+
+		serialized_wallet_tx.Id = tx.Id
+		serialized_wallet_tx.User = *serialized_user
+		serialized_wallet_tx.Reference = tx.Reference
+		serialized_wallet_tx.EntryType = tx.EntryType
+		serialized_wallet_tx.Description = tx.Description
+		serialized_wallet_tx.CreatedAt = tx.CreatedAt
+		serialized_wallet_tx.UpdatedAt = tx.UpdatedAt
+
+		serialized_wallet_txs = append(serialized_wallet_txs, *serialized_wallet_tx)
+	}
+	return utils.SuccessResponse(c, serialized_wallet_txs, "Successfully fetched wallet transactions")
 
 }
 
