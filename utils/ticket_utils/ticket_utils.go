@@ -16,14 +16,14 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadEventTicketSerializer, error) {
+func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSerializer, error) {
 
 	db := initialisers.ConnectDb().Db
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	eventTicket := new(models.EventTicket)
 	event := []models.Event{}
 
-	serialized_event_ticket := new(event_serializers.ReadEventTicketSerializer)
+	serialized_event_ticket := new(event_serializers.ReadCreateEventTicketSerializer)
 
 	// create reference
 	reference := utils.CreateEventReference()
@@ -41,21 +41,23 @@ func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadEventTicketSerializ
 		return nil, errors.New("invalid event")
 	}
 
-	// check the entity and update the organiser id
 	entity := c.Get("Entity")
 
 	// improve this guy to be more specific on the user business
 	if strings.ToUpper(entity) == "BUSINESS" {
 		businesses := []models.Business{}
-		db.First(&businesses, "user_id = ?", authenticated_user["id"])
+		err = db.First(&businesses, "user_id = ?", authenticated_user["id"]).Error
+		if err != nil {
+			return nil, errors.New("oops! you are not the event organiser")
+		}
 		business_id := businesses[0].Id.String()
 		if event[0].OrganiserId != business_id {
-			return nil, errors.New("not event organiser")
+			return nil, errors.New("oops! you are not the event organiser")
 		}
 	} else {
 		organiser_id := authenticated_user["id"].(string)
 		if event[0].OrganiserId != organiser_id {
-			return nil, errors.New("not event organiser")
+			return nil, errors.New("oops! you are not the event organiser")
 		}
 	}
 
@@ -64,7 +66,6 @@ func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadEventTicketSerializ
 	if err != nil {
 		return nil, errors.New(err.Error())
 	}
-
 
 	serialized_event_ticket.Id = eventTicket.Id
 	serialized_event_ticket.Price = eventTicket.Price
@@ -93,7 +94,7 @@ func GetEventTickets(user_id string, entity string, c *fiber.Ctx) ([]event_seria
 	privilege := authenticated_user["privilege"].(string)
 
 	if strings.ToUpper(privilege) == "ADMIN" {
-		result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Order("created_at desc").Find(&event_tickets)
+		result := db.Model(&models.EventTicket{}).Joins("Event").Order("created_at desc").Find(&event_tickets)
 		if result.Error != nil {
 			return nil, result.Error
 		}
@@ -103,24 +104,51 @@ func GetEventTickets(user_id string, entity string, c *fiber.Ctx) ([]event_seria
 			businesses := []models.Business{}
 			db.First(&businesses, "user_id = ?", user_id)
 			business_id := businesses[0].Id.String()
-			result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Where("events.organiser_id = ?", business_id).Order("created_at desc").Find(&event_tickets)
+			result := db.Model(&models.EventTicket{}).
+				Joins("LEFT JOIN events ON events.id = event_tickets.event_id").
+				Where("events.organiser_id = ?", business_id).
+				Preload("Event").
+				Order("event_tickets.created_at desc").
+				Find(&event_tickets)
 			if result.Error != nil {
 				return nil, result.Error
 			}
 		} else {
 			organiser_id := user_id
-			result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Where("events.organiser_id = ?", organiser_id).Order("created_at desc").Find(&event_tickets)
+			result := db.Model(&models.EventTicket{}).
+				Joins("LEFT JOIN events ON events.id = event_tickets.event_id").
+				Where("events.organiser_id = ?", organiser_id).
+				Preload("Event").
+				Order("event_tickets.created_at desc").
+				Find(&event_tickets)
 			if result.Error != nil {
 				return nil, result.Error
 			}
-		
+
 		}
 	}
 
-
 	for _, ticket := range event_tickets {
 
+		ticket_event := ticket.Event
+		serialized_event := event_serializers.ReadCreateEventSerializer{
+			EventId:     ticket_event.Id,
+			Reference:   ticket_event.Reference,
+			IsBusiness:  ticket_event.IsBusiness,
+			Name:        ticket_event.Name,
+			EventType:   ticket_event.EventType,
+			Description: ticket_event.Description,
+			Address:     ticket_event.Address,
+			Category:    ticket_event.Category,
+			Duration:    ticket_event.Duration,
+			StartTime:   ticket_event.StartTime,
+			EndTime:     ticket_event.EndTime,
+			CreatedAt:   ticket_event.CreatedAt,
+			UpdatedAt:   ticket_event.UpdatedAt,
+		}
+
 		serialized_event_ticket.Id = ticket.Id
+		serialized_event_ticket.Event = serialized_event
 		serialized_event_ticket.Price = ticket.Price
 		serialized_event_ticket.Reference = ticket.Reference
 		serialized_event_ticket.IsPaid = ticket.IsPaid
@@ -411,7 +439,7 @@ func TransferUserTicket(c *fiber.Ctx) (bool, string) {
 
 	// check if the receiver already has usertickets for the event ticket
 	db.Where("user_id = ? AND event_ticket_id = ?", receiver_id_uuid, userTicket.EventTicketId).Find(&userTickets)
-	
+
 	if userTickets[0].Id != uuid.Nil {
 		userTickets[0].EventId = user_ticket.EventId
 		userTickets[0].EventTicketId = user_ticket.EventTicketId

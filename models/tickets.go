@@ -87,7 +87,6 @@ func (event_ticket *EventTicket) BeforeCreate(*gorm.DB) (err error) {
 	return
 }
 
-
 type UserTicket struct {
 	Id            uuid.UUID   `gorm:"type:uuid;primaryKey;not null" json:"id"`
 	EventId       uuid.UUID   `gorm:"type:uuid;not null" json:"event_id"`

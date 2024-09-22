@@ -36,9 +36,9 @@ func GetBusiness(c *fiber.Ctx) error {
 	serialized_user := new(user_serializers.UserSerializer)
 	privilege := authenticated_user["privilege"]
 	if privilege == "ADMIN" {
-		db.Model(&models.Business{}).Joins("User").Order("created_at desc").Find(&businesses).Order("businesses.created_at DESC")
+		db.Model(&models.Business{}).Joins("User").Order("created_at desc").Find(&businesses)
 	} else {
-		db.Model(&models.Business{}).Joins("User").Order("created_at desc").First(&businesses, "businesses.user_id = ?", authenticated_user["id"]).Order("businesses.created_at DESC")
+		db.Model(&models.Business{}).Joins("User").Order("created_at desc").First(&businesses, "businesses.user_id = ?", authenticated_user["id"])
 	}
 	for _, business := range businesses {
 
