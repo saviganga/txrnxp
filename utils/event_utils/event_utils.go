@@ -32,7 +32,10 @@ func CreateEvent(c *fiber.Ctx) (*event_serializers.ReadCreateEventSerializer, er
 	// improve this guy to be more specific on the user business
 	if strings.ToUpper(entity) == "BUSINESS" {
 		businesses := []models.Business{}
-		db.First(&businesses, "user_id = ?", authenticated_user["id"])
+		err := db.First(&businesses, "user_id = ?", authenticated_user["id"]).Error
+		if err != nil {
+			return nil, errors.New("oops! this user is not a business")
+		}
 		organiser_id := businesses[0].Id.String()
 		event.OrganiserId = organiser_id
 		event.IsBusiness = true

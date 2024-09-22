@@ -102,7 +102,10 @@ func GetEventTickets(user_id string, entity string, c *fiber.Ctx) ([]event_seria
 
 		if strings.ToUpper(entity) == "BUSINESS" {
 			businesses := []models.Business{}
-			db.First(&businesses, "user_id = ?", user_id)
+			err := db.First(&businesses, "user_id = ?", user_id).Error
+			if err != nil {
+				return nil, errors.New("oops! this user is not a business")
+			}
 			business_id := businesses[0].Id.String()
 			result := db.Model(&models.EventTicket{}).
 				Joins("LEFT JOIN events ON events.id = event_tickets.event_id").
@@ -170,26 +173,17 @@ func GetEventTickets(user_id string, entity string, c *fiber.Ctx) ([]event_seria
 	return serialized_event_tickets, nil
 }
 
-func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) {
+func GetUserTickets(user_id string, entity string) ([]event_serializers.ReadUserTicketSerializer, error) {
 	db := initialisers.ConnectDb().Db
 	user_tickets := []models.UserTicket{}
 
 	if strings.ToUpper(entity) == "BUSINESS" {
-		businesses := []models.Business{}
-		db.First(&businesses, "user_id = ?", user_id)
-		business_id := businesses[0].Id.String()
-		result := db.Joins("JOIN Event ON Event.Id = UserTicket.EventId").Where("Event.OrganiserId = ?", business_id)
-		if result.Error != nil {
-			return nil, result.Error
-		}
+		return nil, errors.New("oops! this feature is not available for businesses")
 	} else {
-		organiser_id := user_id
-
 		result := db.Model(&models.UserTicket{}).
-			Preload("Event").
 			Preload("EventTicket.Event").
 			Joins("User").
-			Where("user_tickets.user_id = ?", organiser_id).
+			Where("user_tickets.user_id = ?", user_id).
 			Order("created_at desc").
 			Find(&user_tickets)
 
@@ -198,7 +192,12 @@ func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) 
 		}
 	}
 
-	return user_tickets, nil
+	serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets)
+	if err != nil {
+		return nil, err
+	}
+
+	return serialized_user_tickets, nil
 }
 
 func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSerializer, error) {
@@ -279,13 +278,9 @@ func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSeri
 		}
 	}
 
-	serialized_user_ticket := event_serializers.ReadCreateUserTicketSerializer{
-		Id:          userTicket.Id,
-		Reference:   userTicket.Reference,
-		Count:       userTicket.Count,
-		IsValidated: userTicket.IsValidated,
-		CreatedAt:   userTicket.CreatedAt,
-		UpdatedAt:   userTicket.UpdatedAt,
+	serialized_user_ticket, err := event_serializers.SerializeCreateUserTickets(*userTicket)
+	if err != nil {
+		return nil, err
 	}
 
 	return &serialized_user_ticket, nil
