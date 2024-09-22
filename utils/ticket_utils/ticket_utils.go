@@ -201,7 +201,7 @@ func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) 
 	return user_tickets, nil
 }
 
-func CreateUserTicket(c *fiber.Ctx) (*models.UserTicket, error) {
+func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSerializer, error) {
 
 	// initialise niggas
 	db := initialisers.ConnectDb().Db
@@ -259,21 +259,36 @@ func CreateUserTicket(c *fiber.Ctx) (*models.UserTicket, error) {
 	// credit event organiser wallet
 	entry_description := "ticket purchase commission"
 	db.Find(&events, "id = ?", eventTicket[0].EventId)
-	db.First(&businesses, "id = ?", events[0].OrganiserId)
-	if businesses[0].Id != uuid.Nil {
+	if events[0].IsBusiness {
+		err = db.First(&businesses, "id = ?", events[0].OrganiserId).Error
+		if err != nil {
+			return nil, errors.New("oops! nable to find event organiser")
+		}
 		is_credited, credited_wallet := wallets_utils.CreditUserWallet(businesses[0].UserId, eventTicket[0].Price, entry_description)
 		if !is_credited {
 			return nil, errors.New(credited_wallet)
 		}
 	} else {
-		db.First(&users, "id = ?", events[0].OrganiserId)
+		err = db.First(&users, "id = ?", events[0].OrganiserId).Error
+		if err != nil {
+			return nil, errors.New("oops! nable to find event organiser")
+		}
 		is_credited, credited_wallet := wallets_utils.CreditUserWallet(users[0].Id, eventTicket[0].Price, entry_description)
 		if !is_credited {
 			return nil, errors.New(credited_wallet)
 		}
 	}
 
-	return userTicket, nil
+	serialized_user_ticket := event_serializers.ReadCreateUserTicketSerializer{
+		Id:          userTicket.Id,
+		Reference:   userTicket.Reference,
+		Count:       userTicket.Count,
+		IsValidated: userTicket.IsValidated,
+		CreatedAt:   userTicket.CreatedAt,
+		UpdatedAt:   userTicket.UpdatedAt,
+	}
+
+	return &serialized_user_ticket, nil
 
 }
 
