@@ -19,7 +19,7 @@ func Routes(app *fiber.App) {
 
 	routes.Get("", event_views.GetEvents)
 	routes.Post("", auth_utils.ValidateAuth, event_views.CreateEvents)
-	routes.Get(":reference/", auth_utils.ValidateAuth, event_views.GetEventByReference)
+	routes.Get(":reference/", event_views.GetEventByReference)
 
 	_ = routes
 }

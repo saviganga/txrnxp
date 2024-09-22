@@ -1,6 +1,8 @@
 package ticket_serializers
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
 
 type CreateUserTicketSerializer struct {
 	EventTicketId string `json:"event_ticket_id" validate:"required"`

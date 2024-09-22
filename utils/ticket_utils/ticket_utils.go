@@ -5,6 +5,7 @@ import (
 	"strings"
 	"txrnxp/initialisers"
 	"txrnxp/models"
+	"txrnxp/serializers/event_serializers"
 	"txrnxp/serializers/ticket_serializers"
 	"txrnxp/utils"
 	"txrnxp/utils/db_utils"
@@ -15,12 +16,14 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreateEventTicket(c *fiber.Ctx) (*models.EventTicket, error) {
+func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSerializer, error) {
 
 	db := initialisers.ConnectDb().Db
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	eventTicket := new(models.EventTicket)
 	event := []models.Event{}
+
+	serialized_event_ticket := new(event_serializers.ReadCreateEventTicketSerializer)
 
 	// create reference
 	reference := utils.CreateEventReference()
@@ -38,21 +41,23 @@ func CreateEventTicket(c *fiber.Ctx) (*models.EventTicket, error) {
 		return nil, errors.New("invalid event")
 	}
 
-	// check the entity and update the organiser id
 	entity := c.Get("Entity")
 
 	// improve this guy to be more specific on the user business
 	if strings.ToUpper(entity) == "BUSINESS" {
 		businesses := []models.Business{}
-		db.First(&businesses, "user_id = ?", authenticated_user["id"])
+		err = db.First(&businesses, "user_id = ?", authenticated_user["id"]).Error
+		if err != nil {
+			return nil, errors.New("oops! you are not the event organiser")
+		}
 		business_id := businesses[0].Id.String()
 		if event[0].OrganiserId != business_id {
-			return nil, errors.New("not event organiser")
+			return nil, errors.New("oops! you are not the event organiser")
 		}
 	} else {
 		organiser_id := authenticated_user["id"].(string)
 		if event[0].OrganiserId != organiser_id {
-			return nil, errors.New("not event organiser")
+			return nil, errors.New("oops! you are not the event organiser")
 		}
 	}
 
@@ -62,53 +67,123 @@ func CreateEventTicket(c *fiber.Ctx) (*models.EventTicket, error) {
 		return nil, errors.New(err.Error())
 	}
 
-	return eventTicket, nil
+	serialized_event_ticket.Id = eventTicket.Id
+	serialized_event_ticket.Price = eventTicket.Price
+	serialized_event_ticket.Reference = eventTicket.Reference
+	serialized_event_ticket.IsPaid = eventTicket.IsPaid
+	serialized_event_ticket.IsInviteOnly = eventTicket.IsInviteOnly
+	serialized_event_ticket.TicketType = eventTicket.TicketType
+	serialized_event_ticket.Description = eventTicket.Description
+	serialized_event_ticket.Perks = eventTicket.Perks
+	serialized_event_ticket.PurchaseLimit = eventTicket.PurchaseLimit
+	serialized_event_ticket.IsLimitedStock = eventTicket.IsLimitedStock
+	serialized_event_ticket.StockNumber = eventTicket.StockNumber
+	serialized_event_ticket.SoldTickets = eventTicket.SoldTickets
+	serialized_event_ticket.CreatedAt = eventTicket.CreatedAt
+	serialized_event_ticket.UpdatedAt = eventTicket.UpdatedAt
+
+	return serialized_event_ticket, nil
 }
 
-func GetEventTickets(user_id string, entity string) ([]models.EventTicket, error) {
+func GetEventTickets(user_id string, entity string, c *fiber.Ctx) ([]event_serializers.ReadEventTicketSerializer, error) {
 	db := initialisers.ConnectDb().Db
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	event_tickets := []models.EventTicket{}
+	serialized_event_ticket := new(event_serializers.ReadEventTicketSerializer)
+	serialized_event_tickets := []event_serializers.ReadEventTicketSerializer{}
+	privilege := authenticated_user["privilege"].(string)
 
-	if strings.ToUpper(entity) == "BUSINESS" {
-		businesses := []models.Business{}
-		db.First(&businesses, "user_id = ?", user_id)
-		business_id := businesses[0].Id.String()
-		result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Where("events.organiser_id = ?", business_id).Find(&event_tickets)
+	if strings.ToUpper(privilege) == "ADMIN" {
+		result := db.Model(&models.EventTicket{}).Joins("Event").Order("created_at desc").Find(&event_tickets)
 		if result.Error != nil {
 			return nil, result.Error
 		}
 	} else {
-		organiser_id := user_id
-		result := db.Joins("JOIN events ON event_tickets.event_id = events.id").Where("events.organiser_id = ?", organiser_id).Find(&event_tickets)
-		if result.Error != nil {
-			return nil, result.Error
+
+		if strings.ToUpper(entity) == "BUSINESS" {
+			businesses := []models.Business{}
+			err := db.First(&businesses, "user_id = ?", user_id).Error
+			if err != nil {
+				return nil, errors.New("oops! this user is not a business")
+			}
+			business_id := businesses[0].Id.String()
+			result := db.Model(&models.EventTicket{}).
+				Joins("LEFT JOIN events ON events.id = event_tickets.event_id").
+				Where("events.organiser_id = ?", business_id).
+				Preload("Event").
+				Order("event_tickets.created_at desc").
+				Find(&event_tickets)
+			if result.Error != nil {
+				return nil, result.Error
+			}
+		} else {
+			organiser_id := user_id
+			result := db.Model(&models.EventTicket{}).
+				Joins("LEFT JOIN events ON events.id = event_tickets.event_id").
+				Where("events.organiser_id = ?", organiser_id).
+				Preload("Event").
+				Order("event_tickets.created_at desc").
+				Find(&event_tickets)
+			if result.Error != nil {
+				return nil, result.Error
+			}
+
 		}
 	}
 
-	return event_tickets, nil
+	for _, ticket := range event_tickets {
+
+		ticket_event := ticket.Event
+		serialized_event := event_serializers.ReadCreateEventSerializer{
+			EventId:     ticket_event.Id,
+			Reference:   ticket_event.Reference,
+			IsBusiness:  ticket_event.IsBusiness,
+			Name:        ticket_event.Name,
+			EventType:   ticket_event.EventType,
+			Description: ticket_event.Description,
+			Address:     ticket_event.Address,
+			Category:    ticket_event.Category,
+			Duration:    ticket_event.Duration,
+			StartTime:   ticket_event.StartTime,
+			EndTime:     ticket_event.EndTime,
+			CreatedAt:   ticket_event.CreatedAt,
+			UpdatedAt:   ticket_event.UpdatedAt,
+		}
+
+		serialized_event_ticket.Id = ticket.Id
+		serialized_event_ticket.Event = serialized_event
+		serialized_event_ticket.Price = ticket.Price
+		serialized_event_ticket.Reference = ticket.Reference
+		serialized_event_ticket.IsPaid = ticket.IsPaid
+		serialized_event_ticket.IsInviteOnly = ticket.IsInviteOnly
+		serialized_event_ticket.TicketType = ticket.TicketType
+		serialized_event_ticket.Description = ticket.Description
+		serialized_event_ticket.Perks = ticket.Perks
+		serialized_event_ticket.PurchaseLimit = ticket.PurchaseLimit
+		serialized_event_ticket.IsLimitedStock = ticket.IsLimitedStock
+		serialized_event_ticket.StockNumber = ticket.StockNumber
+		serialized_event_ticket.SoldTickets = ticket.SoldTickets
+		serialized_event_ticket.CreatedAt = ticket.CreatedAt
+		serialized_event_ticket.UpdatedAt = ticket.UpdatedAt
+
+		serialized_event_tickets = append(serialized_event_tickets, *serialized_event_ticket)
+
+	}
+
+	return serialized_event_tickets, nil
 }
 
-func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) {
+func GetUserTickets(user_id string, entity string) ([]event_serializers.ReadUserTicketSerializer, error) {
 	db := initialisers.ConnectDb().Db
 	user_tickets := []models.UserTicket{}
 
 	if strings.ToUpper(entity) == "BUSINESS" {
-		businesses := []models.Business{}
-		db.First(&businesses, "user_id = ?", user_id)
-		business_id := businesses[0].Id.String()
-		result := db.Joins("JOIN Event ON Event.Id = UserTicket.EventId").Where("Event.OrganiserId = ?", business_id)
-		// result := db.Model(&models.UserTicket{}).Joins("User").Joins("Event").Joins("EventTicket").Where("events.organiser_id = ?", business_id).Find(&user_tickets)
-		if result.Error != nil {
-			return nil, result.Error
-		}
+		return nil, errors.New("oops! this feature is not available for businesses")
 	} else {
-		organiser_id := user_id
-
 		result := db.Model(&models.UserTicket{}).
-			Preload("Event").
 			Preload("EventTicket.Event").
 			Joins("User").
-			Where("user_tickets.user_id = ?", organiser_id).
+			Where("user_tickets.user_id = ?", user_id).
 			Order("created_at desc").
 			Find(&user_tickets)
 
@@ -117,10 +192,15 @@ func GetUserTickets(user_id string, entity string) ([]models.UserTicket, error) 
 		}
 	}
 
-	return user_tickets, nil
+	serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets)
+	if err != nil {
+		return nil, err
+	}
+
+	return serialized_user_tickets, nil
 }
 
-func CreateUserTicket(c *fiber.Ctx) (*models.UserTicket, error) {
+func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSerializer, error) {
 
 	// initialise niggas
 	db := initialisers.ConnectDb().Db
@@ -178,21 +258,32 @@ func CreateUserTicket(c *fiber.Ctx) (*models.UserTicket, error) {
 	// credit event organiser wallet
 	entry_description := "ticket purchase commission"
 	db.Find(&events, "id = ?", eventTicket[0].EventId)
-	db.First(&businesses, "id = ?", events[0].OrganiserId)
-	if businesses[0].Id != uuid.Nil {
+	if events[0].IsBusiness {
+		err = db.First(&businesses, "id = ?", events[0].OrganiserId).Error
+		if err != nil {
+			return nil, errors.New("oops! nable to find event organiser")
+		}
 		is_credited, credited_wallet := wallets_utils.CreditUserWallet(businesses[0].UserId, eventTicket[0].Price, entry_description)
 		if !is_credited {
 			return nil, errors.New(credited_wallet)
 		}
 	} else {
-		db.First(&users, "id = ?", events[0].OrganiserId)
+		err = db.First(&users, "id = ?", events[0].OrganiserId).Error
+		if err != nil {
+			return nil, errors.New("oops! nable to find event organiser")
+		}
 		is_credited, credited_wallet := wallets_utils.CreditUserWallet(users[0].Id, eventTicket[0].Price, entry_description)
 		if !is_credited {
 			return nil, errors.New(credited_wallet)
 		}
 	}
 
-	return userTicket, nil
+	serialized_user_ticket, err := event_serializers.SerializeCreateUserTickets(*userTicket)
+	if err != nil {
+		return nil, err
+	}
+
+	return &serialized_user_ticket, nil
 
 }
 
@@ -358,7 +449,7 @@ func TransferUserTicket(c *fiber.Ctx) (bool, string) {
 
 	// check if the receiver already has usertickets for the event ticket
 	db.Where("user_id = ? AND event_ticket_id = ?", receiver_id_uuid, userTicket.EventTicketId).Find(&userTickets)
-	
+
 	if userTickets[0].Id != uuid.Nil {
 		userTickets[0].EventId = user_ticket.EventId
 		userTickets[0].EventTicketId = user_ticket.EventTicketId

@@ -18,6 +18,7 @@ type Event struct {
 	Id           uuid.UUID `gorm:"type:uuid;primaryKey;not null" json:"id"`
 	OrganiserId  string    `gorm:"type:varchar(50)" json:"organiser_id"`
 	OrganisaerId string    `gorm:"type:varchar(50)" json:"organisaer_id"`
+	IsBusiness   bool      `gorm:"type:boolean;default:false" json:"is_business"`
 	Name         string    `gorm:"type:varchar(50);not null" json:"name"`
 	EventType    string    `gorm:"type:varchar(50);default: ONLINE" json:"event_type"`
 	Reference    string    `gorm:"type:varchar(50);unique" json:"reference"`
