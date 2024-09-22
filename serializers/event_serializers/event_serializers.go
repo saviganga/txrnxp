@@ -1,7 +1,9 @@
 package event_serializers
 
 import (
+	"fmt"
 	"time"
+	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/serializers/ticket_serializers"
 	"txrnxp/serializers/user_serializers"
@@ -25,6 +27,23 @@ type EventDetailSerializer struct {
 	EndTime     time.Time                                            `json:"end_time" validate:"required"`
 	CreatedAt   time.Time                                            `json:"created_at" validate:"required"`
 	UpdatedAt   time.Time                                            `json:"updated_at" validate:"required"`
+}
+
+type EventListSerializer struct {
+	EventId     uuid.UUID              `json:"id" validate:"required"`
+	Reference   string                 `json:"reference" validate:"required"`
+	Organiser   map[string]interface{} `json:"organiser" validate:"required"`
+	IsBusiness  bool                   `json:"is_business" validate:"required"`
+	Name        string                 `json:"name" validate:"required"`
+	EventType   string                 `json:"type" validate:"required"`
+	Description string                 `json:"description" validate:"required"`
+	Address     string                 `json:"address" validate:"required"`
+	Category    string                 `json:"category" validate:"required"`
+	Duration    string                 `json:"duration" validate:"required"`
+	StartTime   time.Time              `json:"start_time" validate:"required"`
+	EndTime     time.Time              `json:"end_time" validate:"required"`
+	CreatedAt   time.Time              `json:"created_at" validate:"required"`
+	UpdatedAt   time.Time              `json:"updated_at" validate:"required"`
 }
 
 type ReadCreateEventSerializer struct {
@@ -107,6 +126,63 @@ func PopulateEventOrganiserDetails(name string, is_business bool, id string) map
 	}
 }
 
+func SerializeReadEventsList(events []models.Event) ([]EventListSerializer, error) {
+
+	db := initialisers.ConnectDb().Db
+	event_serializer := new(EventListSerializer)
+	event_serializers := []EventListSerializer{}
+
+	for _, event := range events {
+
+		organiser_user := []models.Xuser{}
+		organiser_business := []models.Business{}
+
+		organiser_details := make(map[string]interface{})
+
+		// get the event organiser details
+		organiser_id := event.OrganiserId
+		is_business := event.IsBusiness
+
+		if is_business {
+			err := db.Model(&models.Business{}).First(&organiser_business, "id = ?", organiser_id).Error
+			if err != nil {
+				return nil, fmt.Errorf(fmt.Sprintf("oops! unable to fetch events - organiser: %s", event.Reference))
+			}
+			organiser_details["name"] = organiser_business[0].Name
+			organiser_details["is_business"] = true
+			organiser_details["id"] = organiser_id
+
+		} else {
+			err := db.Model(&models.Xuser{}).First(&organiser_user, "id = ?", organiser_id).Error
+			if err != nil {
+				return nil, fmt.Errorf(fmt.Sprintf("oops! unable to fetch events - organiser: %s", event.Reference))
+			}
+			organiser_details["name"] = organiser_user[0].UserName
+			organiser_details["is_business"] = false
+			organiser_details["id"] = organiser_id
+		}
+
+		// fill in the serializer
+		event_serializer.EventId = event.Id
+		event_serializer.Reference = event.Reference
+		event_serializer.Organiser = organiser_details
+		event_serializer.Name = event.Name
+		event_serializer.EventType = event.EventType
+		event_serializer.Description = event.Description
+		event_serializer.Address = event.Address
+		event_serializer.Category = event.Category
+		event_serializer.Duration = event.Duration
+		event_serializer.StartTime = event.StartTime
+		event_serializer.EndTime = event.EndTime
+		event_serializer.CreatedAt = event.CreatedAt
+		event_serializer.UpdatedAt = event.UpdatedAt
+
+		event_serializers = append(event_serializers, *event_serializer)
+
+	}
+
+	return event_serializers, nil
+}
 
 func SerializeReadUserTickets(user_tickets []models.UserTicket) ([]ReadUserTicketSerializer, error) {
 	serialized_user_tickets := []ReadUserTicketSerializer{}
@@ -116,51 +192,51 @@ func SerializeReadUserTickets(user_tickets []models.UserTicket) ([]ReadUserTicke
 		user := ticket.User
 
 		serialized_event := ReadCreateEventSerializer{
-			EventId: event.Id,
-			Reference: event.Reference,
-			IsBusiness: event.IsBusiness,
-			Name: event.Name,
-			EventType: event.EventType,
+			EventId:     event.Id,
+			Reference:   event.Reference,
+			IsBusiness:  event.IsBusiness,
+			Name:        event.Name,
+			EventType:   event.EventType,
 			Description: event.Description,
-			Address: event.Address,
-			Category: event.Category,
-			Duration: event.Duration,
-			StartTime: event.StartTime,
-			EndTime: event.EndTime,
-			CreatedAt: event.CreatedAt,
-			UpdatedAt: event.UpdatedAt,
+			Address:     event.Address,
+			Category:    event.Category,
+			Duration:    event.Duration,
+			StartTime:   event.StartTime,
+			EndTime:     event.EndTime,
+			CreatedAt:   event.CreatedAt,
+			UpdatedAt:   event.UpdatedAt,
 		}
 
 		serialized_event_ticket := ticket_serializers.EventTicketCustomuserSerializer{
-			Id: event_ticket.Id,
-			Price: event_ticket.Price,
-			Reference: event_ticket.Reference,
-			IsPaid: event_ticket.IsPaid,
+			Id:           event_ticket.Id,
+			Price:        event_ticket.Price,
+			Reference:    event_ticket.Reference,
+			IsPaid:       event_ticket.IsPaid,
 			IsInviteOnly: event_ticket.IsInviteOnly,
-			TicketType: event_ticket.TicketType,
-			Description: event_ticket.Description,
-			Perks: event_ticket.Perks,
+			TicketType:   event_ticket.TicketType,
+			Description:  event_ticket.Description,
+			Perks:        event_ticket.Perks,
 		}
 
 		serialized_user := user_serializers.ExportUserSerializer{
-			Id: user.Id,
-			Email: user.Email,
-			UserName: user.UserName,
-			FirstName: user.FirstName,
-			LastName: user.LastName,
+			Id:          user.Id,
+			Email:       user.Email,
+			UserName:    user.UserName,
+			FirstName:   user.FirstName,
+			LastName:    user.LastName,
 			PhoneNumber: user.PhoneNumber,
 		}
 
 		serialized_user_ticket := ReadUserTicketSerializer{
-			Id: ticket.Id,
-			Reference: ticket.Reference,
-			Event: serialized_event,
+			Id:          ticket.Id,
+			Reference:   ticket.Reference,
+			Event:       serialized_event,
 			EventTicket: serialized_event_ticket,
-			User: serialized_user,
-			Count: ticket.Count,
+			User:        serialized_user,
+			Count:       ticket.Count,
 			IsValidated: ticket.IsValidated,
-			CreatedAt: ticket.CreatedAt,
-			UpdatedAt: ticket.UpdatedAt,
+			CreatedAt:   ticket.CreatedAt,
+			UpdatedAt:   ticket.UpdatedAt,
 		}
 
 		serialized_user_tickets = append(serialized_user_tickets, serialized_user_ticket)
