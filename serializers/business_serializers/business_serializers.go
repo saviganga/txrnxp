@@ -16,3 +16,13 @@ type ReadBusinessSerializer struct {
 	CreatedAt time.Time                       `json:"created_at" validate:"required"`
 	UpdatedAt time.Time                       `json:"updated_at" validate:"required"`
 }
+
+
+type ReadCreateBusinessSerializer struct {
+	Id        uuid.UUID                       `json:"id" validate:"required"`
+	Reference string                          `json:"reference" validate:"required"`
+	Name      string                          `json:"name" validate:"required"`
+	Country   string                          `json:"country" validate:"required"`
+	CreatedAt time.Time                       `json:"created_at" validate:"required"`
+	UpdatedAt time.Time                       `json:"updated_at" validate:"required"`
+}
