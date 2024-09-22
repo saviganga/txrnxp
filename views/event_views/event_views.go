@@ -1,6 +1,7 @@
 package event_views
 
 import (
+	"fmt"
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/serializers/event_serializers"
@@ -18,29 +19,34 @@ func GetEvents(c *fiber.Ctx) error {
 	event_serializers := []event_serializers.EventDetailSerializer{}
 	organiser_user := []models.Xuser{}
 	organiser_business := []models.Business{}
-	is_business := false
-	organiser_details := make(map[string]interface{})
 
 	db.Order("created_at desc").Find(&events)
 
 	for _, event := range events {
 
+		organiser_details := make(map[string]interface{})
+
 		// get the event organiser details
 		organiser_id := event.OrganiserId
-		err := db.Model(&models.Xuser{}).First(&organiser_user, "id = ?", organiser_id).Error
-		if err == nil {
-			is_business = false
-		} else {
-			is_business = true
-			db.Model(&models.Business{}).First(&organiser_business, "id = ?", organiser_id)
-		}
+		is_business := event.IsBusiness
 
 		if is_business {
+			err := db.Model(&models.Business{}).First(&organiser_business, "id = ?", organiser_id).Error
+			if err != nil {
+				return utils.BadRequestResponse(c, fmt.Sprintf("oops! unable to fetch events - organiser: %s", event.Reference))
+			}
 			organiser_details["name"] = organiser_business[0].Name
 			organiser_details["is_business"] = true
+			organiser_details["id"] = organiser_id
+
 		} else {
+			err := db.Model(&models.Xuser{}).First(&organiser_user, "id = ?", organiser_id).Error
+			if err != nil {
+				return utils.BadRequestResponse(c, fmt.Sprintf("oops! unable to fetch events - organiser: %s", event.Reference))
+			}
 			organiser_details["name"] = organiser_user[0].UserName
 			organiser_details["is_business"] = false
+			organiser_details["id"] = organiser_id
 		}
 
 		// fill in the serializer
@@ -66,7 +72,6 @@ func GetEvents(c *fiber.Ctx) error {
 }
 
 func CreateEvents(c *fiber.Ctx) error {
-
 
 	event, err := event_utils.CreateEvent(c)
 

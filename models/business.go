@@ -15,7 +15,7 @@ type Business struct {
 	Id        uuid.UUID `gorm:"type:uuid;primaryKey;not null" json:"id"`
 	UserId    uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
 	Name      string    `gorm:"type:varchar(50)" json:"name"`
-	Reference string    `gorm:"type:varchar(50)" json:"reference"`
+	Reference string    `gorm:"type:varchar(50);not null" json:"reference"`
 	Country   string    `gorm:"type:varchar(50)" json:"country"`
 	CreatedAt time.Time `gorm:"type:timestamp with time zone;default:now()" json:"created_at"`
 	UpdatedAt time.Time `gorm:"type:timestamp with time zone" json:"updated_at"`
