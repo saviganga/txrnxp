@@ -7,7 +7,6 @@ import (
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/serializers/event_serializers"
-	"txrnxp/serializers/ticket_serializers"
 	"txrnxp/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -19,7 +18,6 @@ func CreateEvent(c *fiber.Ctx) (*event_serializers.ReadCreateEventSerializer, er
 	db := initialisers.ConnectDb().Db
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	event := new(models.Event)
-	event_serializer := new(event_serializers.ReadCreateEventSerializer)
 	privilege := authenticated_user["privilege"]
 
 	if privilege == "ADMIN" {
@@ -58,28 +56,14 @@ func CreateEvent(c *fiber.Ctx) (*event_serializers.ReadCreateEventSerializer, er
 		return nil, errors.New(err.Error())
 	}
 
-	// fill in the serializer
-	event_serializer.EventId = event.Id
-	event_serializer.Reference = event.Reference
-	event_serializer.Name = event.Name
-	event_serializer.IsBusiness = event.IsBusiness
-	event_serializer.EventType = event.EventType
-	event_serializer.Description = event.Description
-	event_serializer.Address = event.Address
-	event_serializer.Category = event.Category
-	event_serializer.Duration = event.Duration
-	event_serializer.StartTime = event.StartTime
-	event_serializer.EndTime = event.EndTime
-	event_serializer.CreatedAt = event.CreatedAt
-	event_serializer.UpdatedAt = event.UpdatedAt
+	serialized_event := event_serializers.SerializeCreateEvent(*event)
 
-	return event_serializer, nil
+	return &serialized_event, nil
 }
 
 func GetEventByReference(c *fiber.Ctx) (*event_serializers.EventDetailSerializer, error) {
 
 	db := initialisers.ConnectDb().Db
-	// authenticated_user := c.Locals("user").(jwt.MapClaims)
 	reference := c.Params("reference")
 	event_list := []models.Event{}
 	event := new(event_serializers.EventDetailSerializer)
@@ -87,8 +71,6 @@ func GetEventByReference(c *fiber.Ctx) (*event_serializers.EventDetailSerializer
 	organiser_user := []models.Xuser{}
 	organiser_business := []models.Business{}
 	organiser_details := make(map[string]interface{})
-	eventTicket := new(ticket_serializers.EventTicketCustomuserSerializer)
-	eventTickets := []ticket_serializers.EventTicketCustomuserSerializer{}
 
 	// get the event model
 	err := db.Model(&models.Event{}).First(&event_list, "reference = ?", reference).Error
@@ -124,37 +106,8 @@ func GetEventByReference(c *fiber.Ctx) (*event_serializers.EventDetailSerializer
 		return nil, errors.New(err.Error())
 	}
 
-	for _, eventticket := range event_tickets {
+	serialized_event := event_serializers.SerializeGetEventByReference(event_list, event_tickets, organiser_details)
 
-		eventTicket.Id = eventticket.Id
-		eventTicket.IsPaid = eventticket.IsPaid
-		eventTicket.IsInviteOnly = eventticket.IsInviteOnly
-		eventTicket.Reference = eventticket.Reference
-		eventTicket.TicketType = eventticket.TicketType
-		eventTicket.Description = eventticket.Description
-		eventTicket.Perks = eventticket.Perks
-		eventTicket.Price = eventticket.Price
-
-		eventTickets = append(eventTickets, *eventTicket)
-
-	}
-
-	// fill in the serializer
-	event.EventId = event_list[0].Id
-	event.Reference = reference
-	event.Tickets = eventTickets
-	event.Organiser = organiser_details
-	event.Name = event_list[0].Name
-	event.EventType = event_list[0].EventType
-	event.Description = event_list[0].Description
-	event.Address = event_list[0].Address
-	event.Category = event_list[0].Category
-	event.Duration = event_list[0].Duration
-	event.StartTime = event_list[0].StartTime
-	event.EndTime = event_list[0].EndTime
-	event.CreatedAt = event_list[0].CreatedAt
-	event.UpdatedAt = event_list[0].UpdatedAt
-
-	return event, nil
+	return &serialized_event, nil
 
 }

@@ -257,3 +257,65 @@ func SerializeCreateUserTickets(user_ticket models.UserTicket) (ReadCreateUserTi
 
 	return serialized_user_ticket, nil
 }
+
+func SerializeGetEventByReference(event_list []models.Event, event_tickets []models.EventTicket, organiser_details map[string]interface{}) EventDetailSerializer {
+
+	event := new(EventDetailSerializer)
+	eventTicket := new(ticket_serializers.EventTicketCustomuserSerializer)
+	eventTickets := []ticket_serializers.EventTicketCustomuserSerializer{}
+
+	for _, eventticket := range event_tickets {
+
+		eventTicket.Id = eventticket.Id
+		eventTicket.IsPaid = eventticket.IsPaid
+		eventTicket.IsInviteOnly = eventticket.IsInviteOnly
+		eventTicket.Reference = eventticket.Reference
+		eventTicket.TicketType = eventticket.TicketType
+		eventTicket.Description = eventticket.Description
+		eventTicket.Perks = eventticket.Perks
+		eventTicket.Price = eventticket.Price
+
+		eventTickets = append(eventTickets, *eventTicket)
+
+	}
+
+	// fill in the serializer
+	event.EventId = event_list[0].Id
+	event.Reference = event_list[0].Reference
+	event.Tickets = eventTickets
+	event.Organiser = organiser_details
+	event.Name = event_list[0].Name
+	event.EventType = event_list[0].EventType
+	event.Description = event_list[0].Description
+	event.Address = event_list[0].Address
+	event.Category = event_list[0].Category
+	event.Duration = event_list[0].Duration
+	event.StartTime = event_list[0].StartTime
+	event.EndTime = event_list[0].EndTime
+	event.CreatedAt = event_list[0].CreatedAt
+	event.UpdatedAt = event_list[0].UpdatedAt
+
+	return *event
+}
+
+func SerializeCreateEvent(event models.Event) ReadCreateEventSerializer {
+
+	serialized_event := new(ReadCreateEventSerializer)
+
+	serialized_event.EventId = event.Id
+	serialized_event.Reference = event.Reference
+	serialized_event.Name = event.Name
+	serialized_event.IsBusiness = event.IsBusiness
+	serialized_event.EventType = event.EventType
+	serialized_event.Description = event.Description
+	serialized_event.Address = event.Address
+	serialized_event.Category = event.Category
+	serialized_event.Duration = event.Duration
+	serialized_event.StartTime = event.StartTime
+	serialized_event.EndTime = event.EndTime
+	serialized_event.CreatedAt = event.CreatedAt
+	serialized_event.UpdatedAt = event.UpdatedAt
+
+	return *serialized_event
+
+}
