@@ -19,11 +19,7 @@ func AdminTopupWallet(c *fiber.Ctx) error {
 	is_manual_entry, manual_entry := wallets_utils.AdminWalletManualEntry(c)
 	if !is_manual_entry {
 		return utils.BadRequestResponse(c, manual_entry)
-		// return c.Status(400).JSON(fiber.Map{
-		// 	"message": manual_entry,
-		// })
 	}
-	// return c.Status(200).JSON(manual_entry)
 	return utils.NoDataSuccessResponse(c, manual_entry)
 }
 
