@@ -319,3 +319,72 @@ func SerializeCreateEvent(event models.Event) ReadCreateEventSerializer {
 	return *serialized_event
 
 }
+
+func SerializeCreateEventTicket(eventTicket models.EventTicket) (ReadCreateEventTicketSerializer) {
+
+	serialized_event_ticket := new(ReadCreateEventTicketSerializer)
+
+	serialized_event_ticket.Id = eventTicket.Id
+	serialized_event_ticket.Price = eventTicket.Price
+	serialized_event_ticket.Reference = eventTicket.Reference
+	serialized_event_ticket.IsPaid = eventTicket.IsPaid
+	serialized_event_ticket.IsInviteOnly = eventTicket.IsInviteOnly
+	serialized_event_ticket.TicketType = eventTicket.TicketType
+	serialized_event_ticket.Description = eventTicket.Description
+	serialized_event_ticket.Perks = eventTicket.Perks
+	serialized_event_ticket.PurchaseLimit = eventTicket.PurchaseLimit
+	serialized_event_ticket.IsLimitedStock = eventTicket.IsLimitedStock
+	serialized_event_ticket.StockNumber = eventTicket.StockNumber
+	serialized_event_ticket.SoldTickets = eventTicket.SoldTickets
+	serialized_event_ticket.CreatedAt = eventTicket.CreatedAt
+	serialized_event_ticket.UpdatedAt = eventTicket.UpdatedAt
+
+	return *serialized_event_ticket
+}
+
+func SerializeGetEventTickets(event_tickets []models.EventTicket) ([]ReadEventTicketSerializer) {
+
+	serialized_event_ticket := new(ReadEventTicketSerializer)
+	serialized_event_tickets := []ReadEventTicketSerializer{}
+
+	for _, ticket := range event_tickets {
+
+		ticket_event := ticket.Event
+		serialized_event := ReadCreateEventSerializer{
+			EventId:     ticket_event.Id,
+			Reference:   ticket_event.Reference,
+			IsBusiness:  ticket_event.IsBusiness,
+			Name:        ticket_event.Name,
+			EventType:   ticket_event.EventType,
+			Description: ticket_event.Description,
+			Address:     ticket_event.Address,
+			Category:    ticket_event.Category,
+			Duration:    ticket_event.Duration,
+			StartTime:   ticket_event.StartTime,
+			EndTime:     ticket_event.EndTime,
+			CreatedAt:   ticket_event.CreatedAt,
+			UpdatedAt:   ticket_event.UpdatedAt,
+		}
+
+		serialized_event_ticket.Id = ticket.Id
+		serialized_event_ticket.Event = serialized_event
+		serialized_event_ticket.Price = ticket.Price
+		serialized_event_ticket.Reference = ticket.Reference
+		serialized_event_ticket.IsPaid = ticket.IsPaid
+		serialized_event_ticket.IsInviteOnly = ticket.IsInviteOnly
+		serialized_event_ticket.TicketType = ticket.TicketType
+		serialized_event_ticket.Description = ticket.Description
+		serialized_event_ticket.Perks = ticket.Perks
+		serialized_event_ticket.PurchaseLimit = ticket.PurchaseLimit
+		serialized_event_ticket.IsLimitedStock = ticket.IsLimitedStock
+		serialized_event_ticket.StockNumber = ticket.StockNumber
+		serialized_event_ticket.SoldTickets = ticket.SoldTickets
+		serialized_event_ticket.CreatedAt = ticket.CreatedAt
+		serialized_event_ticket.UpdatedAt = ticket.UpdatedAt
+
+		serialized_event_tickets = append(serialized_event_tickets, *serialized_event_ticket)
+
+	}
+
+	return serialized_event_tickets
+}
