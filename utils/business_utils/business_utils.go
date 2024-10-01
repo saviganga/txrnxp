@@ -18,7 +18,6 @@ func CreateBusiness(c *fiber.Ctx) (*business_serializers.ReadCreateBusinessSeria
 	db := initialisers.ConnectDb().Db
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	business := new(models.Business)
-	serialized_business := new(business_serializers.ReadCreateBusinessSerializer)
 	privilege := authenticated_user["privilege"]
 
 	if privilege == "ADMIN" {
@@ -44,12 +43,7 @@ func CreateBusiness(c *fiber.Ctx) (*business_serializers.ReadCreateBusinessSeria
 		return nil, errors.New(err.Error())
 	}
 
-	serialized_business.Id = business.Id
-	serialized_business.Reference = business.Reference
-	serialized_business.Name = business.Name
-	serialized_business.Country = business.Country
-	serialized_business.CreatedAt = business.CreatedAt
-	serialized_business.UpdatedAt = business.UpdatedAt
+	serialized_business := business_serializers.SerializeCreateBusiness(*business)
 
-	return serialized_business, nil
+	return &serialized_business, nil
 }

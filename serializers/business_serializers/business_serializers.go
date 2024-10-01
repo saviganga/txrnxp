@@ -2,6 +2,7 @@ package business_serializers
 
 import (
 	"time"
+	"txrnxp/models"
 	"txrnxp/serializers/user_serializers"
 
 	"github.com/google/uuid"
@@ -25,4 +26,55 @@ type ReadCreateBusinessSerializer struct {
 	Country   string                          `json:"country" validate:"required"`
 	CreatedAt time.Time                       `json:"created_at" validate:"required"`
 	UpdatedAt time.Time                       `json:"updated_at" validate:"required"`
+}
+
+func SerializeCreateBusiness(business models.Business) (ReadCreateBusinessSerializer) {
+
+	serialized_business := new(ReadCreateBusinessSerializer)
+
+	serialized_business.Id = business.Id
+	serialized_business.Reference = business.Reference
+	serialized_business.Name = business.Name
+	serialized_business.Country = business.Country
+	serialized_business.CreatedAt = business.CreatedAt
+	serialized_business.UpdatedAt = business.UpdatedAt
+
+	return *serialized_business
+
+}
+
+func SerializeReadBusiness(businesses []models.Business) ([]ReadBusinessSerializer) {
+
+	serialized_user := new(user_serializers.UserSerializer)
+	serialized_business := new(ReadBusinessSerializer)
+	serialized_businesses := []ReadBusinessSerializer{}
+
+	for _, business := range businesses {
+
+		serialized_user.Id = business.User.Id
+		serialized_user.Email = business.User.Email
+		serialized_user.UserName = business.User.UserName
+		serialized_user.FirstName = business.User.FirstName
+		serialized_user.LastName = business.User.LastName
+		serialized_user.PhoneNumber = business.User.PhoneNumber
+		serialized_user.IsActive = business.User.IsActive
+		serialized_user.IsBusiness = business.User.IsBusiness
+		serialized_user.LastLogin = business.User.LastLogin
+		serialized_user.CreatedAt = business.User.CreatedAt
+		serialized_user.UpdatedAt = business.User.UpdatedAt
+
+		serialized_business.Id = business.Id
+		serialized_business.User = *serialized_user
+		serialized_business.Reference = business.Reference
+		serialized_business.Name = business.Name
+		serialized_business.Country = business.Country
+		serialized_business.CreatedAt = business.CreatedAt
+		serialized_business.UpdatedAt = business.UpdatedAt
+
+		serialized_businesses = append(serialized_businesses, *serialized_business)
+	}
+
+	return serialized_businesses
+
+
 }
