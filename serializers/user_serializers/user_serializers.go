@@ -48,3 +48,49 @@ func SerializeUser(user models.AdminUser) (UserSerializer) {
 
 	return *serialized_user
 }
+
+
+
+func SerializeUsers(users []models.Xuser) ([]UserSerializer) {
+
+	serialized_user := new(UserSerializer) 
+	serialized_users := []UserSerializer{}
+
+	for _, user := range users {
+		serialized_user.Id = user.Id
+		serialized_user.Email = user.Email
+		serialized_user.UserName = user.UserName
+		serialized_user.FirstName = user.FirstName
+		serialized_user.LastName = user.LastName
+		serialized_user.PhoneNumber = user.PhoneNumber
+		serialized_user.IsActive = user.IsActive
+		serialized_user.IsBusiness = user.IsBusiness
+		serialized_user.LastLogin= user.LastLogin
+		serialized_user.CreatedAt = user.CreatedAt
+		serialized_user.UpdatedAt = user.UpdatedAt
+
+		serialized_users = append(serialized_users, *serialized_user)
+	}
+
+	return serialized_users
+}
+
+
+func SerializeUserSerializer(user models.Xuser) (UserSerializer) {
+
+	serialized_user := new(UserSerializer) 
+
+	serialized_user.Id = user.Id
+	serialized_user.Email = user.Email
+	serialized_user.UserName = user.UserName
+	serialized_user.FirstName = user.FirstName
+	serialized_user.LastName = user.LastName
+	serialized_user.PhoneNumber = user.PhoneNumber
+	serialized_user.IsActive = user.IsActive
+	serialized_user.IsBusiness = user.IsBusiness
+	serialized_user.LastLogin= user.LastLogin
+	serialized_user.CreatedAt = user.CreatedAt
+	serialized_user.UpdatedAt = user.UpdatedAt
+
+	return *serialized_user
+}
