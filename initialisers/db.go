@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"txrnxp/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
