@@ -98,12 +98,13 @@ type ReadCreateEventTicketSerializer struct {
 }
 
 type ReadCreateUserTicketSerializer struct {
-	Id          uuid.UUID `json:"id" validate:"required"`
-	Reference   string    `json:"reference" validate:"required"`
-	Count       int       `json:"count" validate:"required"`
-	IsValidated bool      `json:"is_validated" validate:"required"`
-	CreatedAt   time.Time `json:"created_at" validate:"required"`
-	UpdatedAt   time.Time `json:"updated_at" validate:"required"`
+	Id          uuid.UUID              `json:"id" validate:"required"`
+	Reference   string                 `json:"reference" validate:"required"`
+	Count       int                    `json:"count" validate:"required"`
+	Barcode     map[string]interface{} `json:"barcode" validate:"required"`
+	IsValidated bool                   `json:"is_validated" validate:"required"`
+	CreatedAt   time.Time              `json:"created_at" validate:"required"`
+	UpdatedAt   time.Time              `json:"updated_at" validate:"required"`
 }
 
 type ReadUserTicketSerializer struct {
@@ -113,6 +114,7 @@ type ReadUserTicketSerializer struct {
 	EventTicket ticket_serializers.EventTicketCustomuserSerializer `json:"event_ticket" validate:"required"`
 	User        user_serializers.ExportUserSerializer              `json:"user" validate:"required"`
 	Count       int                                                `json:"count" validate:"required"`
+	Barcode     map[string]interface{}                             `json:"barcode" validate:"required"`
 	IsValidated bool                                               `json:"is_validated" validate:"required"`
 	CreatedAt   time.Time                                          `json:"created_at" validate:"required"`
 	UpdatedAt   time.Time                                          `json:"updated_at" validate:"required"`
@@ -234,6 +236,7 @@ func SerializeReadUserTickets(user_tickets []models.UserTicket) ([]ReadUserTicke
 			EventTicket: serialized_event_ticket,
 			User:        serialized_user,
 			Count:       ticket.Count,
+			Barcode:     ticket.Barcodee,
 			IsValidated: ticket.IsValidated,
 			CreatedAt:   ticket.CreatedAt,
 			UpdatedAt:   ticket.UpdatedAt,
@@ -247,9 +250,10 @@ func SerializeReadUserTickets(user_tickets []models.UserTicket) ([]ReadUserTicke
 
 func SerializeCreateUserTickets(user_ticket models.UserTicket) (ReadCreateUserTicketSerializer, error) {
 	serialized_user_ticket := ReadCreateUserTicketSerializer{
-		Id:          user_ticket.Id,
-		Reference:   user_ticket.Reference,
-		Count:       user_ticket.Count,
+		Id:        user_ticket.Id,
+		Reference: user_ticket.Reference,
+		Count:     user_ticket.Count,
+		Barcode:   user_ticket.Barcodee,
 		IsValidated: user_ticket.IsValidated,
 		CreatedAt:   user_ticket.CreatedAt,
 		UpdatedAt:   user_ticket.UpdatedAt,
@@ -320,7 +324,7 @@ func SerializeCreateEvent(event models.Event) ReadCreateEventSerializer {
 
 }
 
-func SerializeCreateEventTicket(eventTicket models.EventTicket) (ReadCreateEventTicketSerializer) {
+func SerializeCreateEventTicket(eventTicket models.EventTicket) ReadCreateEventTicketSerializer {
 
 	serialized_event_ticket := new(ReadCreateEventTicketSerializer)
 
@@ -342,7 +346,7 @@ func SerializeCreateEventTicket(eventTicket models.EventTicket) (ReadCreateEvent
 	return *serialized_event_ticket
 }
 
-func SerializeGetEventTickets(event_tickets []models.EventTicket) ([]ReadEventTicketSerializer) {
+func SerializeGetEventTickets(event_tickets []models.EventTicket) []ReadEventTicketSerializer {
 
 	serialized_event_ticket := new(ReadEventTicketSerializer)
 	serialized_event_tickets := []ReadEventTicketSerializer{}

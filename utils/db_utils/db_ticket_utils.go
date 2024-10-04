@@ -13,14 +13,15 @@ func UpdateUserTicket(userTicket *models.UserTicket) (bool, string) {
 		EventId:       userTicket.EventId,
 		EventTicketId: userTicket.EventTicketId,
 		Reference:     userTicket.Reference,
+		Barcodee:      userTicket.Barcodee,
 		Count:         userTicket.Count,
 		IsValidated:   userTicket.IsValidated,
 		CreatedAt:     userTicket.CreatedAt,
 	}).Error
 	if err != nil {
-		return false, "unable to update event ticket"
+		return false, "unable to update user ticket"
 	}
-	return true, "successfully updated event ticket"
+	return true, "successfully updated user ticket"
 
 }
 

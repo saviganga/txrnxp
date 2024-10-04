@@ -53,6 +53,16 @@ func GetUserTickets(c *fiber.Ctx) error {
 
 }
 
+func GetUserTicketByReference(c *fiber.Ctx) error {
+
+	event, err := ticket_utils.GetUserTicketByReference(c)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+	return utils.SuccessResponse(c, event, "Successfully fetched user ticket")
+}
+
+
 func CreateUserTicket(c *fiber.Ctx) error {
 	user_ticket, err := ticket_utils.CreateUserTicket(c)
 	if err != nil {

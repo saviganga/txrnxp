@@ -1,8 +1,12 @@
 package ticket_utils
 
 import (
+	"bytes"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"strings"
+
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/serializers/event_serializers"
@@ -11,9 +15,12 @@ import (
 	"txrnxp/utils/db_utils"
 	"txrnxp/utils/wallets_utils"
 
+	"image/png"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+	"github.com/skip2/go-qrcode"
 )
 
 func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSerializer, error) {
@@ -145,6 +152,64 @@ func GetUserTickets(user_id string, entity string) ([]event_serializers.ReadUser
 
 	return serialized_user_tickets, nil
 }
+
+
+func GetUserTicketByReference(c *fiber.Ctx) (*event_serializers.ReadUserTicketSerializer, error) {
+
+	db := initialisers.ConnectDb().Db
+	user_tickets := []models.UserTicket{}
+	reference := c.Params("reference")
+	entity := c.Get("Entity")
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	user_id := authenticated_user["id"].(string)
+
+	if strings.ToUpper(entity) == "BUSINESS" {
+		return nil, errors.New("oops! this feature is not available for businesses")
+	} else {
+		if strings.ToUpper(authenticated_user["privilege"].(string)) != "ADMIN" {
+			result := db.Model(&models.UserTicket{}).
+				Preload("EventTicket.Event").
+				Joins("User").
+				Where("user_tickets.reference = ?", reference).
+				Order("created_at desc").
+				First(&user_tickets)
+
+			if result.Error != nil {
+				return nil, result.Error
+			}
+			user_id_uuid, err := utils.ConvertStringToUUID(user_id)
+			if err != nil {
+				return nil, err
+			}
+			if user_tickets[0].EventTicket.Event.OrganiserId != user_id && user_tickets[0].UserId != user_id_uuid {
+				return nil, errors.New("oops! you do not have permission to view this resource")
+			}
+		} else {
+
+			result := db.Model(&models.UserTicket{}).
+				Preload("EventTicket.Event").
+				Joins("User").
+				Where("user_tickets.reference = ?", reference).
+				Order("created_at desc").
+				First(&user_tickets)
+
+			if result.Error != nil {
+				return nil, result.Error
+			}
+
+		}
+
+	}
+
+	serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets)
+	if err != nil {
+		return nil, err
+	}
+
+	return &serialized_user_tickets[0], nil
+
+}
+
 
 func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSerializer, error) {
 
@@ -332,10 +397,26 @@ func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTick
 			return nil, errors.New(updated_event_ticket)
 		}
 
-		err = db.Create(&userTicket).Error
-
+		// generate ticket barcode
+		barcode_url, barcode_image, err := GenerateUserTicketBarcode(userTicket.Reference)
 		if err != nil {
 			return nil, errors.New(err.Error())
+		}
+		barcode_img := base64.StdEncoding.EncodeToString(barcode_image)
+		barcode := make(map[string]interface{})
+		barcode["url"] = barcode_url
+		barcode["code"] = barcode_img
+		userTicket.Barcodee = barcode
+
+		err = db.Create(&userTicket).Error
+		if err != nil {
+			return nil, errors.New(err.Error())
+		}
+
+		// increase userticket count
+		is_updated_user_ticket, updated_user_ticket := db_utils.UpdateUserTicket(userTicket)
+		if !is_updated_user_ticket {
+			return nil, errors.New(updated_user_ticket)
 		}
 
 		return userTicket, nil
@@ -415,6 +496,18 @@ func TransferUserTicket(c *fiber.Ctx) (bool, string) {
 		userTicket.UserId = receiver_id_uuid
 		userTicket.Reference = reference
 		userTicket.Count += transfer_request.Count
+		
+		// generate ticket barcode
+		barcode_url, barcode_image, err := GenerateUserTicketBarcode(userTicket.Reference)
+		if err != nil {
+			return false, err.Error()
+		}
+		barcode_img := base64.StdEncoding.EncodeToString(barcode_image)
+		barcode := make(map[string]interface{})
+		barcode["url"] = barcode_url
+		barcode["code"] = barcode_img
+		userTicket.Barcodee = barcode
+		
 		err = db.Create(&userTicket).Error
 		if err != nil {
 			return false, err.Error()
@@ -431,3 +524,27 @@ func TransferUserTicket(c *fiber.Ctx) (bool, string) {
 	return true, "Transfer successful"
 
 }
+
+func GenerateUserTicketBarcode(reference string) (string, []byte, error) {
+
+	url := fmt.Sprintf("https://ec08-197-211-59-80.ngrok-free.app/api/v1/tickets/users/%s", reference)
+
+	// Create a new QR code object
+	qr, err := qrcode.New(url, qrcode.Medium)
+	if err != nil {
+		return "", nil, errors.New(err.Error())
+	}
+
+	// Convert image to bytes
+	imgBuf := new(bytes.Buffer)
+	err = png.Encode(imgBuf, qr.Image(256))
+	if err != nil {
+		return "", nil, errors.New(err.Error())
+	}
+
+	imageData := imgBuf.Bytes()
+
+	return url, imageData, nil
+
+}
+
