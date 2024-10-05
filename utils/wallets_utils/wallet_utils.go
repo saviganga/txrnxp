@@ -27,7 +27,6 @@ func CreateUserWallet(user *models.Xuser) error {
 	return nil
 }
 
-
 // func CreateAdminWallet() error {
 // 	// create admin wallet
 // 	db := initialisers.ConnectDb().Db
@@ -38,7 +37,6 @@ func CreateUserWallet(user *models.Xuser) error {
 // 	}
 // 	return nil
 // }
-
 
 func GetUserWallets(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
@@ -125,8 +123,21 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 		return false, err.Error()
 	}
 
+	amount_float, err := utils.ConvertStringToFloat(entry_request.Amount)
+	if err != nil || amount_float == 0.0 {
+		return false, err.Error()
+	}
+
 	if strings.ToUpper(entry_request.EntryType) == "CREDIT" {
 
+		// debit admin wallet
+		admin_entry_description := "Manual entry - debit"
+		is_debited, debited_wallet := DebitAdminWallet(amount_float, admin_entry_description)
+		if !is_debited {
+			return false, debited_wallet
+		}
+
+		// credit user wallet
 		entry_description := "Manual entry - credit"
 		is_credited, credited_wallet := CreditUserWallet(user_id_uuid, entry_request.Amount, entry_description)
 		if !is_credited {
@@ -137,15 +148,18 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 
 	} else {
 
-		amount_float, err := utils.ConvertStringToFloat(entry_request.Amount)
-		if err != nil || amount_float == 0.0 {
-			return false, err.Error()
-		}
-
+		// debit user wallet
 		entry_description := "Manual entry - debit"
 		is_debited, debited_wallet := DebitUserWallet(user_id_uuid, amount_float, entry_description)
 		if !is_debited {
 			return false, debited_wallet
+		}
+
+		// credit admin wallet
+		admin_entry_description := "Manual entry - credit"
+		is_credited, credited_wallet := CreditAdminWallet(entry_request.Amount, admin_entry_description)
+		if !is_credited {
+			return false, credited_wallet
 		}
 
 		return true, debited_wallet
@@ -203,7 +217,7 @@ func DebitAdminWallet(amount float64, description string) (bool, string) {
 	adminWallet := models.AdminWallet{}
 
 	// get admin wallet
-	err := db.Model(&models.AdminWallet{}).Joins("User").First(&adminWallet).Error
+	err := db.Model(&models.AdminWallet{}).First(&adminWallet).Error
 	if err != nil {
 		return false, "Oops! Unable to find admin wallet"
 	}
@@ -297,7 +311,7 @@ func CreditAdminWallet(amount string, description string) (bool, string) {
 	}
 
 	// get admin wallet
-	err = db.Model(&models.AdminWallet{}).Joins("User").First(&adminWallet).Error
+	err = db.Model(&models.AdminWallet{}).First(&adminWallet).Error
 	if err != nil {
 		return false, "Oops! Unable to find admin wallet"
 	}
@@ -311,7 +325,6 @@ func CreditAdminWallet(amount string, description string) (bool, string) {
 	if err != nil {
 		return false, "error converting wallet ledger balance"
 	}
-
 
 	// credit user wallet
 	adminWallet.AvailableBalance = strconv.FormatFloat(adminWallet_available_balance+amount_float, 'f', -1, 64)
