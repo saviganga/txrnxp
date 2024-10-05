@@ -27,6 +27,19 @@ func CreateUserWallet(user *models.Xuser) error {
 	return nil
 }
 
+
+// func CreateAdminWallet() error {
+// 	// create admin wallet
+// 	db := initialisers.ConnectDb().Db
+// 	adminwallet_query := models.AdminWallet{}
+// 	dbError := db.Create(&adminwallet_query).Error
+// 	if dbError != nil {
+// 		return errors.New("oops! error creating admin wallet")
+// 	}
+// 	return nil
+// }
+
+
 func GetUserWallets(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
@@ -45,6 +58,23 @@ func GetUserWallets(c *fiber.Ctx) error {
 
 }
 
+func GetAdminWallet(c *fiber.Ctx) error {
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	adminwallet := models.AdminWallet{}
+	privilege := authenticated_user["privilege"]
+	message := ""
+	if privilege == "ADMIN" {
+		db.Model(&models.AdminWallet{}).Order("created_at desc").First(&adminwallet)
+		message = "Succesfully fetched wallet"
+	} else {
+		return utils.BadRequestResponse(c, "Oops! You do not have permission to perform this action")
+	}
+	serialized_wallets := wallet_serializers.SerializeGetAdminWallet(&adminwallet)
+	return utils.SuccessResponse(c, serialized_wallets, message)
+
+}
+
 func GetUserWalletTransactions(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
@@ -56,6 +86,21 @@ func GetUserWalletTransactions(c *fiber.Ctx) error {
 		db.Where("user_id = ?", authenticated_user["id"]).Joins("User").Order("created_at DESC").Order("created_at desc").Find(&wallet_tx)
 	}
 	serialized_wallet_txs := wallet_serializers.SerializeGetWalletEntries(wallet_tx)
+	return utils.SuccessResponse(c, serialized_wallet_txs, "Successfully fetched wallet transactions")
+
+}
+
+func GetAdminWalletTransactions(c *fiber.Ctx) error {
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	wallet_tx := []models.AdminTransactionEntries{}
+	privilege := authenticated_user["privilege"]
+	if privilege == "ADMIN" {
+		db.Model(&models.AdminTransactionEntries{}).Order("created_at desc").Find(&wallet_tx)
+	} else {
+		return utils.BadRequestResponse(c, "Oops! You do not have permission to perform this action")
+	}
+	serialized_wallet_txs := wallet_serializers.SerializeGetAdminWalletEntries(wallet_tx)
 	return utils.SuccessResponse(c, serialized_wallet_txs, "Successfully fetched wallet transactions")
 
 }
@@ -152,6 +197,50 @@ func DebitUserWallet(user_id uuid.UUID, amount float64, description string) (boo
 
 }
 
+func DebitAdminWallet(amount float64, description string) (bool, string) {
+
+	db := initialisers.ConnectDb().Db
+	adminWallet := models.AdminWallet{}
+
+	// get admin wallet
+	err := db.Model(&models.AdminWallet{}).Joins("User").First(&adminWallet).Error
+	if err != nil {
+		return false, "Oops! Unable to find admin wallet"
+	}
+
+	// convert wallet balance to float
+	adminWallet_available_balance, err := strconv.ParseFloat(adminWallet.AvailableBalance, 64)
+	if err != nil {
+		return false, "error converting wallet available balance"
+	}
+	adminWallet_ledger_balance, err := strconv.ParseFloat(adminWallet.LedgerBalance, 64)
+	if err != nil {
+		return false, "error converting wallet ledger balance"
+	}
+
+	if adminWallet_available_balance < amount {
+		return false, "oops! insufficient wallet funds"
+	}
+
+	// debit user wallet
+	adminWallet.AvailableBalance = strconv.FormatFloat(adminWallet_available_balance-amount, 'f', -1, 64)
+	adminWallet.LedgerBalance = strconv.FormatFloat(adminWallet_ledger_balance-amount, 'f', -1, 64)
+	is_debited, debited_wallet := db_utils.UpdateAdminWallet(&adminWallet)
+	if !is_debited {
+		return false, debited_wallet
+	}
+
+	amount_str := fmt.Sprintf("%.2f", amount)
+	// update wallet transaction
+	wallet_tx := models.AdminTransactionEntries{Amount: amount_str, Description: description, EntryType: "DEBIT"}
+	dbError := db.Create(&wallet_tx).Error
+	if dbError != nil {
+		return false, dbError.Error()
+	}
+	return true, debited_wallet
+
+}
+
 func CreditUserWallet(user_id uuid.UUID, amount string, description string) (bool, string) {
 
 	db := initialisers.ConnectDb().Db
@@ -188,6 +277,52 @@ func CreditUserWallet(user_id uuid.UUID, amount string, description string) (boo
 	}
 	// update wallet transaction
 	wallet_tx := models.TransactionEntries{UserId: user_id, Amount: amount, Description: description, EntryType: "CREDIT"}
+	dbError := db.Create(&wallet_tx).Error
+	if dbError != nil {
+		return false, dbError.Error()
+	}
+	return true, credited_wallet
+
+}
+
+func CreditAdminWallet(amount string, description string) (bool, string) {
+
+	db := initialisers.ConnectDb().Db
+	adminWallet := models.AdminWallet{}
+
+	// convert amount to float
+	amount_float, err := strconv.ParseFloat(amount, 64)
+	if err != nil {
+		return false, "error converting amount"
+	}
+
+	// get admin wallet
+	err = db.Model(&models.AdminWallet{}).Joins("User").First(&adminWallet).Error
+	if err != nil {
+		return false, "Oops! Unable to find admin wallet"
+	}
+
+	// convert wallet balance to float
+	adminWallet_available_balance, err := strconv.ParseFloat(adminWallet.AvailableBalance, 64)
+	if err != nil {
+		return false, "error converting wallet available balance"
+	}
+	adminWallet_ledger_balance, err := strconv.ParseFloat(adminWallet.LedgerBalance, 64)
+	if err != nil {
+		return false, "error converting wallet ledger balance"
+	}
+
+
+	// credit user wallet
+	adminWallet.AvailableBalance = strconv.FormatFloat(adminWallet_available_balance+amount_float, 'f', -1, 64)
+	adminWallet.LedgerBalance = strconv.FormatFloat(adminWallet_ledger_balance+amount_float, 'f', -1, 64)
+	is_credited, credited_wallet := db_utils.UpdateAdminWallet(&adminWallet)
+	if !is_credited {
+		return false, credited_wallet
+	}
+
+	// update wallet transaction
+	wallet_tx := models.AdminTransactionEntries{Amount: amount, Description: description, EntryType: "CREDIT"}
 	dbError := db.Create(&wallet_tx).Error
 	if dbError != nil {
 		return false, dbError.Error()

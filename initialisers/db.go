@@ -39,7 +39,7 @@ func ConnectDb() Dbinstance {
 	db.Logger = logger.Default.LogMode(logger.Error)
 
 	// log.Println("running migrations")
-	// db.AutoMigrate(&models.Xuser{}, &models.UserWallet{}, &models.XuserAuthToken{}, &models.AdminUser{}, &models.AdminUserAuthToken{}, &models.Business{}, models.Event{}, models.EventTicket{}, models.UserTicket{}, models.TransactionEntries{})
+	// db.AutoMigrate(&models.Xuser{}, &models.UserWallet{}, &models.XuserAuthToken{}, &models.AdminUser{}, &models.AdminUserAuthToken{}, &models.Business{}, models.Event{}, models.EventTicket{}, models.UserTicket{}, models.TransactionEntries{}, models.AdminWallet{}, models.AdminTransactionEntries{})
 
 	DB := Dbinstance{
 		Db: db,

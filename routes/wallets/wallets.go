@@ -22,5 +22,9 @@ func Routes(app *fiber.App) {
 	routes.Post("/topup/admin", auth_utils.ValidateAuth, wallets.AdminTopupWallet)
 	routes.Post("/transfer", auth_utils.ValidateAuth, wallets.WalletTransfer)
 
+	routes.Get("/admin", auth_utils.ValidateAuth, wallets.GetAdminWallet)
+	routes.Get("admin/entries", auth_utils.ValidateAuth, wallets.GetAdminWalletTransactions)
+	// routes.Get("admin/admin", auth_utils.ValidateAuth, wallets.CreateAdminWallet)
+
 	_ = routes
 }

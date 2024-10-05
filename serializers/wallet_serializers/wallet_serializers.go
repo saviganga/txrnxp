@@ -39,6 +39,30 @@ type WalletTransferSerializer struct {
 	Amount        string `json:"amount" validate:"required"`
 }
 
+type AdminWalletSerializer struct {
+	Id               uuid.UUID                       `json:"id" validate:"required"`
+	AvailableBalance string                          `json:"available_balance" validate:"required"`
+	LedgerBalance    string                          `json:"ledger_balance" validate:"required"`
+	CreatedAt        time.Time                       `json:"created_at" validate:"required"`
+	UpdatedAt        time.Time                       `json:"updated_at" validate:"required"`
+}
+
+type ReadAdminWalletEntrySerializer struct {
+	Id          uuid.UUID                       `json:"id" validate:"required"`
+	Amount      string                          `json:"amount" validate:"required"`
+	Reference   string                          `json:"reference" validate:"required"`
+	EntryType   string                          `json:"entry_type" validate:"required"`
+	Description string                          `json:"description" validate:"required"`
+	CreatedAt   time.Time                       `json:"created_at" validate:"required"`
+	UpdatedAt   time.Time                       `json:"updated_at" validate:"required"`
+}
+
+
+
+
+
+
+
 func SerializeGetWallets(userwallets []models.UserWallet) []WalletSerializer {
 
 	serialized_wallet := new(WalletSerializer)
@@ -96,6 +120,44 @@ func SerializeGetWalletEntries(wallet_tx []models.TransactionEntries) []ReadWall
 
 		serialized_wallet_tx.Id = tx.Id
 		serialized_wallet_tx.User = *serialized_user
+		serialized_wallet_tx.Amount = tx.Amount
+		serialized_wallet_tx.Reference = tx.Reference
+		serialized_wallet_tx.EntryType = tx.EntryType
+		serialized_wallet_tx.Description = tx.Description
+		serialized_wallet_tx.CreatedAt = tx.CreatedAt
+		serialized_wallet_tx.UpdatedAt = tx.UpdatedAt
+
+		serialized_wallet_txs = append(serialized_wallet_txs, *serialized_wallet_tx)
+	}
+
+	return serialized_wallet_txs
+
+}
+
+func SerializeGetAdminWallet(wallet *models.AdminWallet) AdminWalletSerializer {
+
+	serialized_wallet := new(AdminWalletSerializer)
+
+	serialized_wallet.Id = wallet.Id
+	serialized_wallet.AvailableBalance = wallet.AvailableBalance
+	serialized_wallet.LedgerBalance = wallet.LedgerBalance
+	serialized_wallet.CreatedAt = wallet.CreatedAt
+	serialized_wallet.UpdatedAt = wallet.UpdatedAt
+
+
+	return *serialized_wallet
+
+}
+
+
+func SerializeGetAdminWalletEntries(wallet_tx []models.AdminTransactionEntries) []ReadAdminWalletEntrySerializer {
+
+	serialized_wallet_tx := new(ReadAdminWalletEntrySerializer)
+	serialized_wallet_txs := []ReadAdminWalletEntrySerializer{}
+
+	for _, tx := range wallet_tx {
+
+		serialized_wallet_tx.Id = tx.Id
 		serialized_wallet_tx.Amount = tx.Amount
 		serialized_wallet_tx.Reference = tx.Reference
 		serialized_wallet_tx.EntryType = tx.EntryType

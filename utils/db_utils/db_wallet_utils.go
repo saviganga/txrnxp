@@ -14,3 +14,14 @@ func UpdateWallet(wallet *models.UserWallet) (bool, string) {
 	return true, "successfully updated wallet"
 
 }
+
+
+func UpdateAdminWallet(wallet *models.AdminWallet) (bool, string) {
+	db := initialisers.ConnectDb().Db
+	err := db.Save(&models.AdminWallet{Id: wallet.Id, AvailableBalance: wallet.AvailableBalance, LedgerBalance: wallet.LedgerBalance, CreatedAt: wallet.CreatedAt}).Error
+	if err != nil {
+		return false, "unable to save wallet"
+	}
+	return true, "successfully updated wallet"
+
+}
