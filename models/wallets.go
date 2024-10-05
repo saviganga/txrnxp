@@ -74,4 +74,3 @@ func (tx *AdminTransactionEntries) BeforeCreate(*gorm.DB) (err error) {
 	tx.Reference = utils.CreateEventReference()
 	return
 }
-

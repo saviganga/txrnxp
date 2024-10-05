@@ -21,9 +21,9 @@ func GetAdminWallet(c *fiber.Ctx) error {
 }
 
 
-// func CreateAdminWallet(c *fiber.Ctx) error {
-// 	return wallets_utils.CreateAdminWallet()
-// }
+func CreateAdminWallet(c *fiber.Ctx) error {
+	return wallets_utils.CreateAdminWallet()
+}
 
 func AdminTopupWallet(c *fiber.Ctx) error {
 	is_manual_entry, manual_entry := wallets_utils.AdminWalletManualEntry(c)

@@ -406,7 +406,7 @@ func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTick
 		barcode := make(map[string]interface{})
 		barcode["url"] = barcode_url
 		barcode["code"] = barcode_img
-		userTicket.Barcodee = barcode
+		userTicket.Barcode = barcode
 
 		err = db.Create(&userTicket).Error
 		if err != nil {
@@ -506,7 +506,7 @@ func TransferUserTicket(c *fiber.Ctx) (bool, string) {
 		barcode := make(map[string]interface{})
 		barcode["url"] = barcode_url
 		barcode["code"] = barcode_img
-		userTicket.Barcodee = barcode
+		userTicket.Barcode = barcode
 		
 		err = db.Create(&userTicket).Error
 		if err != nil {

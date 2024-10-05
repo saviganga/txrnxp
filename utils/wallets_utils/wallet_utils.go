@@ -27,16 +27,16 @@ func CreateUserWallet(user *models.Xuser) error {
 	return nil
 }
 
-// func CreateAdminWallet() error {
-// 	// create admin wallet
-// 	db := initialisers.ConnectDb().Db
-// 	adminwallet_query := models.AdminWallet{}
-// 	dbError := db.Create(&adminwallet_query).Error
-// 	if dbError != nil {
-// 		return errors.New("oops! error creating admin wallet")
-// 	}
-// 	return nil
-// }
+func CreateAdminWallet() error {
+	// create admin wallet
+	db := initialisers.ConnectDb().Db
+	adminwallet_query := models.AdminWallet{}
+	dbError := db.Create(&adminwallet_query).Error
+	if dbError != nil {
+		return errors.New("oops! error creating admin wallet")
+	}
+	return nil
+}
 
 func GetUserWallets(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)

@@ -25,3 +25,38 @@ func CreateAdminUsers(c *fiber.Ctx) error {
 func GetAdminUsers(c *fiber.Ctx) error {
 	return admin_utils.GetAdminUsers(c)
 }
+
+
+func CreateAdminCommissionConfig(c *fiber.Ctx) error {
+
+	config, err := admin_utils.CreateAdminCommission(c)
+
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+	return utils.CreatedResponse(c, config, "Successfully created admin commission config")
+}
+
+
+func GetAdminCommissionConfig(c *fiber.Ctx) error {
+	config, err := admin_utils.GetAdminCommission(c)
+
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+	return utils.CreatedResponse(c, config, "Successfully fetched admin commission config")
+}
+
+
+func UpdateAdminCommissionConfig(c *fiber.Ctx) error {
+
+	config, err := admin_utils.UpdateAdminCommission(c)
+
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+	return utils.CreatedResponse(c, config, "Successfully created admin commission config")
+}
+
+
+

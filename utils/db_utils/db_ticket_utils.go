@@ -13,7 +13,7 @@ func UpdateUserTicket(userTicket *models.UserTicket) (bool, string) {
 		EventId:       userTicket.EventId,
 		EventTicketId: userTicket.EventTicketId,
 		Reference:     userTicket.Reference,
-		Barcodee:      userTicket.Barcodee,
+		Barcode:      userTicket.Barcode,
 		Count:         userTicket.Count,
 		IsValidated:   userTicket.IsValidated,
 		CreatedAt:     userTicket.CreatedAt,
@@ -47,5 +47,21 @@ func UpdateEventTicket(eventTicket *models.EventTicket) (bool, string) {
 		return false, "unable to update event ticket"
 	}
 	return true, "successfully updated event ticket"
+
+}
+
+func UpdateAdminCommissionConfig(admin_commission *models.AdminCommissionConfig) (bool, string) {
+	db := initialisers.ConnectDb().Db
+	err := db.Save(&models.AdminCommissionConfig{
+		Id:         admin_commission.Id,
+		Type: admin_commission.Type,
+		Commission: admin_commission.Commission,
+		Cap: admin_commission.Cap,
+		CreatedAt:  admin_commission.CreatedAt,
+	}).Error
+	if err != nil {
+		return false, "unable to update admin commission config"
+	}
+	return true, "successfully updated admin commission config"
 
 }

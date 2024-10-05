@@ -20,7 +20,7 @@ services:
     ports:
         - "5435:5435"
     volumes:
-      - postgres-db-5:/var/lib/postgresql/data
+      - postgres-db-7:/var/lib/postgresql/data
 
 volumes:
-  postgres-db-5:
+  postgres-db-7:
