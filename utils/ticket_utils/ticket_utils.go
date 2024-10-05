@@ -12,6 +12,7 @@ import (
 	"txrnxp/serializers/event_serializers"
 	"txrnxp/serializers/ticket_serializers"
 	"txrnxp/utils"
+	"txrnxp/utils/admin_utils"
 	"txrnxp/utils/db_utils"
 	"txrnxp/utils/wallets_utils"
 
@@ -244,7 +245,11 @@ func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSeri
 	}
 
 	// get the eventTicket
-	result := db.Find(&eventTicket, "id = ?", user_request.EventTicketId)
+	result := db.Model(&models.EventTicket{}).
+		Joins("LEFT JOIN events ON events.id = event_tickets.event_id").
+		Preload("Event").
+		Order("event_tickets.created_at desc").
+		First(&eventTicket, "event_tickets.id = ?", user_request.EventTicketId)
 	if result.Error != nil {
 		return nil, errors.New("invalid eventTicket")
 	}
@@ -263,18 +268,39 @@ func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSeri
 	userTicket, err = ValidateCreateUserTicketConditions(userTicket, &eventTicket[0], user_request.Count)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.New(err.Error())
 	}
 
+	// admin commission
+	is_paid, commission_amount, err := admin_utils.PayAdminCommission("event_tickets", eventTicket[0].Price, eventTicket[0].Reference)
+	if !is_paid {
+		return nil, errors.New(err.Error())
+	}
+
+	amount_str := eventTicket[0].Price
+	amount_float, err := utils.ConvertStringToFloat(amount_str)
+	if err != nil {
+		return nil, errors.New(err.Error())
+	}
+
+	commission_amount_float, err := utils.ConvertStringToFloat(commission_amount)
+	if err != nil {
+		return nil, errors.New(err.Error())
+	}
+
+	organiser_amount := amount_float - commission_amount_float
+	organiser_amount_str := fmt.Sprintf("%.2f", organiser_amount)
+
+
 	// credit event organiser wallet
-	entry_description := "ticket purchase commission"
+	entry_description := fmt.Sprintf("ticket purchase commission - %s", eventTicket[0].Reference)
 	db.Find(&events, "id = ?", eventTicket[0].EventId)
 	if events[0].IsBusiness {
 		err = db.First(&businesses, "id = ?", events[0].OrganiserId).Error
 		if err != nil {
 			return nil, errors.New("oops! nable to find event organiser")
 		}
-		is_credited, credited_wallet := wallets_utils.CreditUserWallet(businesses[0].UserId, eventTicket[0].Price, entry_description)
+		is_credited, credited_wallet := wallets_utils.CreditUserWallet(businesses[0].UserId, organiser_amount_str, entry_description)
 		if !is_credited {
 			return nil, errors.New(credited_wallet)
 		}
@@ -283,7 +309,7 @@ func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSeri
 		if err != nil {
 			return nil, errors.New("oops! nable to find event organiser")
 		}
-		is_credited, credited_wallet := wallets_utils.CreditUserWallet(users[0].Id, eventTicket[0].Price, entry_description)
+		is_credited, credited_wallet := wallets_utils.CreditUserWallet(users[0].Id, organiser_amount_str, entry_description)
 		if !is_credited {
 			return nil, errors.New(credited_wallet)
 		}
@@ -331,7 +357,7 @@ func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTick
 		amount := float64(ticket_count) * amount_float
 
 		// debit user wallet
-		entry_description := "ticket purchase"
+		entry_description := fmt.Sprintf("ticket purchase - %s", eventTicket.Reference)
 		is_debited, debited_wallet := wallets_utils.DebitUserWallet(userTicket.UserId, amount, entry_description)
 		if !is_debited {
 			return nil, errors.New(debited_wallet)

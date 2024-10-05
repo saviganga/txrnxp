@@ -2,6 +2,7 @@ package admin_utils
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"txrnxp/initialisers"
 	"txrnxp/models"
@@ -9,6 +10,7 @@ import (
 	"txrnxp/serializers/user_serializers"
 	"txrnxp/utils"
 	"txrnxp/utils/db_utils"
+	"txrnxp/utils/wallets_utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
@@ -133,5 +135,57 @@ func UpdateAdminCommission(c *fiber.Ctx) (*admin_serializers.ReadAdminCommission
 	serialized_commission := admin_serializers.SerializeCreateAdminCommissionConfig(admin_commission)
 
 	return &serialized_commission, nil
+
+}
+
+func PayAdminCommission(commission_type string, amount string, event_reference string) (bool, string, error) {
+
+	db := initialisers.ConnectDb().Db
+	admin_commission_config := models.AdminCommissionConfig{}
+
+	// get the config
+	err := db.First(&admin_commission_config, "type = ?", strings.ToLower(commission_type)).Error
+	if err != nil {
+		return false, "", errors.New(err.Error())
+	}
+
+	// get the amount, cap amount, commission - convert to float
+	cap := admin_commission_config.Cap
+	commission := admin_commission_config.Commission
+
+	amount_float, err := utils.ConvertStringToFloat(amount)
+	if err != nil {
+		return false, "", errors.New(err.Error())
+	}
+
+	cap_float, err := utils.ConvertStringToFloat(cap)
+	if err != nil {
+		return false, "", errors.New(err.Error())
+	}
+
+	commission_float, err := utils.ConvertStringToFloat(commission)
+	if err != nil {
+		return false, "", errors.New(err.Error())
+	}
+
+	// calculate the commission amount
+	commission_amount := ( commission_float/float64(100) * amount_float )
+	if commission_amount > cap_float {
+		commission_amount = cap_float
+	} else {
+		commission_amount = ( commission_float/float64(100) * amount_float )
+	}
+	commission_amount_str := fmt.Sprintf("%.2f", commission_amount)
+
+	// credit admin wallet
+	admin_entry_description := fmt.Sprintf("ticket sales commission - %s", event_reference)
+	is_credited, credited_wallet := wallets_utils.CreditAdminWallet(commission_amount_str, admin_entry_description)
+	if !is_credited {
+		return false, credited_wallet, errors.New(credited_wallet)
+	}
+
+	return true, commission_amount_str, nil
+
+
 
 }
