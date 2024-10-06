@@ -581,10 +581,8 @@ func ValidateUserTicket(c *fiber.Ctx) (bool, string) {
 	user_request := new(ticket_serializers.ValidateUserTicket)
 	userTicket := models.UserTicket{}
 	privilege := authenticated_user["privilege"].(string)
-
-	if strings.ToUpper(privilege) != "ADMIN" {
-		return false, "Oops! you do not have permission to perform this action"
-	}
+	business := models.Business{}
+	user := models.Xuser{}
 
 	// validate request body
 	err := c.BodyParser(user_request)
@@ -602,6 +600,26 @@ func ValidateUserTicket(c *fiber.Ctx) (bool, string) {
 
 	if result.Error != nil {
 		return false, "Unable to get user ticket"
+	}
+
+	// validate event organiser
+	organiser_id_uuid, err := utils.ConvertStringToUUID(userTicket.EventTicket.Event.OrganiserId)
+	if err != nil {
+		return false, "Oops! unable to validate request user"
+	}
+
+	if userTicket.EventTicket.Event.IsBusiness {
+		db.Model(&models.Business{}).First(&business, "business.user_id = ?", authenticated_user["id"])
+		organiser_id := business.Id
+		if organiser_id != organiser_id_uuid && strings.ToUpper(privilege) != "ADMIN"  {
+			return false, "Oops! you do not have permission to perform this action"
+		}
+	} else {
+		db.Model(&models.Xuser{}).First(&user, "id = ?", authenticated_user["id"])
+		organiser_id := user.Id
+		if organiser_id != organiser_id_uuid && strings.ToUpper(privilege) != "ADMIN"  {
+			return false, "Oops! you do not have permission to perform this action"
+		}
 	}
 
 	// check if the ticket is already valid
