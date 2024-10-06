@@ -103,6 +103,7 @@ type ReadCreateUserTicketSerializer struct {
 	Count       int                    `json:"count" validate:"required"`
 	Barcode     map[string]interface{} `json:"barcode" validate:"required"`
 	IsValidated bool                   `json:"is_validated" validate:"required"`
+	ValidCount    int	`json:"valid_count" validate:"required"`
 	CreatedAt   time.Time              `json:"created_at" validate:"required"`
 	UpdatedAt   time.Time              `json:"updated_at" validate:"required"`
 }
@@ -116,6 +117,7 @@ type ReadUserTicketSerializer struct {
 	Count       int                                                `json:"count" validate:"required"`
 	Barcode     map[string]interface{}                             `json:"barcode" validate:"required"`
 	IsValidated bool                                               `json:"is_validated" validate:"required"`
+	ValidCount    int	`json:"valid_count" validate:"required"`
 	CreatedAt   time.Time                                          `json:"created_at" validate:"required"`
 	UpdatedAt   time.Time                                          `json:"updated_at" validate:"required"`
 }
@@ -238,6 +240,7 @@ func SerializeReadUserTickets(user_tickets []models.UserTicket) ([]ReadUserTicke
 			Count:       ticket.Count,
 			Barcode:     ticket.Barcode,
 			IsValidated: ticket.IsValidated,
+			ValidCount: ticket.ValidCount,
 			CreatedAt:   ticket.CreatedAt,
 			UpdatedAt:   ticket.UpdatedAt,
 		}
@@ -250,11 +253,12 @@ func SerializeReadUserTickets(user_tickets []models.UserTicket) ([]ReadUserTicke
 
 func SerializeCreateUserTickets(user_ticket models.UserTicket) (ReadCreateUserTicketSerializer, error) {
 	serialized_user_ticket := ReadCreateUserTicketSerializer{
-		Id:        user_ticket.Id,
-		Reference: user_ticket.Reference,
-		Count:     user_ticket.Count,
-		Barcode:   user_ticket.Barcode,
+		Id:          user_ticket.Id,
+		Reference:   user_ticket.Reference,
+		Count:       user_ticket.Count,
+		Barcode:     user_ticket.Barcode,
 		IsValidated: user_ticket.IsValidated,
+		ValidCount: user_ticket.ValidCount,
 		CreatedAt:   user_ticket.CreatedAt,
 		UpdatedAt:   user_ticket.UpdatedAt,
 	}
