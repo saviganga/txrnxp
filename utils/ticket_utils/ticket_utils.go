@@ -272,7 +272,7 @@ func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSeri
 	}
 
 	// admin commission
-	is_paid, commission_amount, err := admin_utils.PayAdminCommission("event_tickets", eventTicket[0].Price, eventTicket[0].Reference)
+	is_paid, commission_amount, err := admin_utils.PayAdminCommission("event_tickets", eventTicket[0].Price, eventTicket[0].Reference, user_request.Count)
 	if !is_paid {
 		return nil, errors.New(err.Error())
 	}
@@ -288,7 +288,7 @@ func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSeri
 		return nil, errors.New(err.Error())
 	}
 
-	organiser_amount := amount_float - commission_amount_float
+	organiser_amount := (amount_float * float64(user_request.Count)) - commission_amount_float
 	organiser_amount_str := fmt.Sprintf("%.2f", organiser_amount)
 
 

@@ -138,7 +138,7 @@ func UpdateAdminCommission(c *fiber.Ctx) (*admin_serializers.ReadAdminCommission
 
 }
 
-func PayAdminCommission(commission_type string, amount string, event_reference string) (bool, string, error) {
+func PayAdminCommission(commission_type string, amount string, event_reference string, count int) (bool, string, error) {
 
 	db := initialisers.ConnectDb().Db
 	admin_commission_config := models.AdminCommissionConfig{}
@@ -169,7 +169,7 @@ func PayAdminCommission(commission_type string, amount string, event_reference s
 	}
 
 	// calculate the commission amount
-	commission_amount := ( commission_float/float64(100) * amount_float )
+	commission_amount := ( commission_float/float64(100) * (amount_float * float64(count)) )
 	if commission_amount > cap_float {
 		commission_amount = cap_float
 	} else {
