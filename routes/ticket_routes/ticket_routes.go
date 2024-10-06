@@ -21,6 +21,7 @@ func Routes(app *fiber.App) {
 	routes.Post("events/", auth_utils.ValidateAuth, ticket_views.CreateEventTicket)
 	routes.Get("users/", auth_utils.ValidateAuth, ticket_views.GetUserTickets)
 	routes.Get("users/:reference/", auth_utils.ValidateAuth, ticket_views.GetUserTicketByReference)
+	routes.Post("users/:reference/", auth_utils.ValidateAuth, ticket_views.ValidateUserTicket)
 	routes.Post("buy/wallet/", auth_utils.ValidateAuth, ticket_views.CreateUserTicket)
 	routes.Post("transfer/", auth_utils.ValidateAuth, ticket_views.TransferUserTicket)
 

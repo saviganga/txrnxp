@@ -85,3 +85,12 @@ func TransferUserTicket(c *fiber.Ctx) error {
 }
 
 // VALIDATE TICKETS FOR ENTRY
+func ValidateUserTicket(c *fiber.Ctx) error {
+
+	is_validated, valid_ticket := ticket_utils.ValidateUserTicket(c)
+	if !is_validated {
+		return utils.BadRequestResponse(c, valid_ticket)
+	}
+	return utils.NoDataSuccessResponse(c, "Success")
+
+}

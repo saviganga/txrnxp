@@ -13,9 +13,10 @@ func UpdateUserTicket(userTicket *models.UserTicket) (bool, string) {
 		EventId:       userTicket.EventId,
 		EventTicketId: userTicket.EventTicketId,
 		Reference:     userTicket.Reference,
-		Barcode:      userTicket.Barcode,
+		Barcode:       userTicket.Barcode,
 		Count:         userTicket.Count,
 		IsValidated:   userTicket.IsValidated,
+		ValidCount:    userTicket.ValidCount,
 		CreatedAt:     userTicket.CreatedAt,
 	}).Error
 	if err != nil {
@@ -54,9 +55,9 @@ func UpdateAdminCommissionConfig(admin_commission *models.AdminCommissionConfig)
 	db := initialisers.ConnectDb().Db
 	err := db.Save(&models.AdminCommissionConfig{
 		Id:         admin_commission.Id,
-		Type: admin_commission.Type,
+		Type:       admin_commission.Type,
 		Commission: admin_commission.Commission,
-		Cap: admin_commission.Cap,
+		Cap:        admin_commission.Cap,
 		CreatedAt:  admin_commission.CreatedAt,
 	}).Error
 	if err != nil {

@@ -574,3 +574,63 @@ func GenerateUserTicketBarcode(reference string) (string, []byte, error) {
 
 }
 
+func ValidateUserTicket(c *fiber.Ctx) (bool, string) {
+	db := initialisers.ConnectDb().Db
+	ticket_reference := c.Params("reference")
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	user_request := new(ticket_serializers.ValidateUserTicket)
+	userTicket := models.UserTicket{}
+	privilege := authenticated_user["privilege"].(string)
+
+	if strings.ToUpper(privilege) != "ADMIN" {
+		return false, "Oops! you do not have permission to perform this action"
+	}
+
+	// validate request body
+	err := c.BodyParser(user_request)
+	if err != nil {
+		return false, "Invalid request body"
+	}
+
+	// get the ticket
+	result := db.Model(&models.UserTicket{}).
+		Preload("EventTicket.Event").
+		Joins("User").
+		Where("user_tickets.reference = ?", ticket_reference).
+		Order("created_at desc").
+		First(&userTicket)
+
+	if result.Error != nil {
+		return false, "Unable to get user ticket"
+	}
+
+	// check if the ticket is already valid
+	if userTicket.IsValidated {
+		return false, "Oops! this ticket has already been validated"
+	}
+
+	// get the ticket count and valid_count, increase ticket count
+	ticket_count := userTicket.Count
+	ticket_valid_count := userTicket.ValidCount
+	ticket_valid_count += user_request.Count
+	if ticket_valid_count > ticket_count {
+		return false, "Oops! invalid number of tickets to validate"
+	}
+
+	// if ticket count == valid_count: is_validated == true, increase valid count, save, return
+	if ticket_valid_count == ticket_count {
+		userTicket.IsValidated = true
+		userTicket.ValidCount = ticket_valid_count
+	} else {  // if ticket count != valid_count: is_validated == false, increase valid count, save, return
+		userTicket.ValidCount = ticket_valid_count
+	}
+
+	is_updated_user_ticket, updated_user_ticket := db_utils.UpdateUserTicket(&userTicket)
+	if !is_updated_user_ticket {
+		return false, updated_user_ticket
+	}
+
+	return true, "Successfully validated user ticket"
+
+
+}
