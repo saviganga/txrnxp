@@ -609,7 +609,7 @@ func ValidateUserTicket(c *fiber.Ctx) (bool, string) {
 		return false, "Oops! this ticket has already been validated"
 	}
 
-	// get the ticket count and valid_count, increase ticket count
+	// get the ticket count and valid_count, increase ticket valid_count
 	ticket_count := userTicket.Count
 	ticket_valid_count := userTicket.ValidCount
 	ticket_valid_count += user_request.Count
