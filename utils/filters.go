@@ -8,43 +8,49 @@ import (
 
 func ValidateRequestFilters(getTableName func() string) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		// Get the table name dynamically (from the closure)
+		filters := make(map[string]interface{})
+		validFields := []string{""}
+
+		// get the table name dynamically
 		table := getTableName()
 
 		// Convert table name to lowercase
 		table = strings.ToLower(table)
 
-		// Validate the model table exists
-		validTables := []string{"xuser"}
+		// validate the model table exists
+		validTables := []string{"xuser", "wallets"}
 		if notInList(table, validTables) {
+			c.Locals("filters", filters)
 			return c.Next()
 		}
 
-		// Validate the table fields
-		filters := map[string]interface{}{}
+		// validate the table fields
 		if table == "xuser" {
-			validFields := []string{"email", "first_name", "last_name", "username", "is_active", "is_verified", "is_business"}
-			c.Request().URI().QueryArgs().VisitAll(func(key, value []byte) {
-
-				keyStr := string(key)
-				valueStr := string(value)
-
-				// Skip empty values
-				if len(valueStr) == 0 {
-					return
-				}
-
-				// Skip invalid fields
-				if notInList(keyStr, validFields) {
-					return
-				}
-
-				// Add valid filters to the filters map
-				filters[keyStr] = valueStr
-			})
+			validFields = []string{"email", "first_name", "last_name", "is_active", "is_verified", "is_business"}
+		} else if table == "wallets" {
+			validFields = []string{"u__email", "u__first_name", "u__last_name"}
 		}
 
-		// Store filters in locals
+		c.Request().URI().QueryArgs().VisitAll(func(key, value []byte) {
+
+			keyStr := string(key)
+			valueStr := string(value)
+
+			// skip empty values
+			if len(valueStr) == 0 {
+				return
+			}
+
+			// skip invalid fields
+			if notInList(keyStr, validFields) {
+				return
+			}
+
+			// sdd valid filters to the filters map
+			filters[keyStr] = strings.ToLower(valueStr)
+		})
+
+		// store filters in locals
 		c.Locals("filters", filters)
 
 		return c.Next()

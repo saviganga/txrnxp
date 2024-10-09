@@ -41,19 +41,39 @@ func CreateAdminWallet() error {
 func GetUserWallets(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
-	userwallets := []models.UserWallet{}
 	privilege := authenticated_user["privilege"]
 	message := ""
-	if privilege == "ADMIN" {
-		db.Model(&models.UserWallet{}).Joins("User").Order("created_at desc").Find(&userwallets)
-		message = "Succesfully fetched wallets"
-	} else {
-		db.Model(&models.UserWallet{}).Joins("User").Order("created_at desc").First(&userwallets, "user_wallets.user_id = ?", authenticated_user["id"])
-		message = "Succesfully fetched wallet"
-	}
-	serialized_wallets := wallet_serializers.SerializeGetWallets(userwallets)
-	return utils.SuccessResponse(c, serialized_wallets, message)
 
+	// define filters based on query parameters
+	filters := c.Locals("filters").(map[string]interface{})
+	limit := c.Locals("size").(int)
+	page := c.Locals("page").(int)
+
+	walletRepo := utils.NewGenericDB[models.UserWallet](db)
+
+	if privilege == "ADMIN" {
+		// admin can see all wallets with filters and pagination
+        joins := []string{"LEFT JOIN xusers AS u ON user_wallets.user_id = u.id"}
+        preloads := []string{"User"}
+        wallets, err := walletRepo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get wallets")
+        }
+
+        serialized_wallets := wallet_serializers.SerializeGetWallets(wallets.Data)
+        wallets.SerializedData = serialized_wallets
+        wallets.Status = "Success"
+        wallets.Message = "Successfully fetched wallets"
+        wallets.Type = "OK"
+        return utils.PaginatedSuccessResponse(c, wallets, "success")
+	} else {
+		userwallets := []models.UserWallet{}
+		// for regular users, only return their own wallets
+		db.Model(&models.UserWallet{}).Joins("User").Order("created_at desc").First(&userwallets, "user_wallets.user_id = ?", authenticated_user["id"])
+		message = "Successfully fetched wallet"
+		serialized_wallets := wallet_serializers.SerializeGetWallets(userwallets)
+		return utils.SuccessResponse(c, serialized_wallets, message)
+	}
 }
 
 func GetAdminWallet(c *fiber.Ctx) error {
