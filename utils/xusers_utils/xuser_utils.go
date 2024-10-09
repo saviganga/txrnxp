@@ -42,7 +42,7 @@ func GetUsers(c *fiber.Ctx) error {
 	userRepo := utils.NewGenericDB[models.Xuser](db)
 	privilege := authenticated_user["privilege"]
 	if privilege == "ADMIN" {
-		users, err := userRepo.GetPagedAndFiltered(c.Locals("size").(int), c.Locals("page").(int))
+		users, err := userRepo.GetPagedAndFiltered(c.Locals("size").(int), c.Locals("page").(int), c.Locals("filters").(map[string]interface{}))
 		if err != nil {
 			return utils.BadRequestResponse(c, "Unable to get users")
 		}

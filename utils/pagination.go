@@ -42,18 +42,26 @@ func paginate(limit, page int) func(db *gorm.DB) *gorm.DB {
 	}
 }
 
-func (r *GenericDBStruct[T]) GetPagedAndFiltered(limit, page int) (PaginationResponse[T], error) {
+func (r *GenericDBStruct[T]) GetPagedAndFiltered(limit, page int, filters map[string]interface{}) (PaginationResponse[T], error) {
 	var results []T
 	var total int64
 
-	// Get total count of records
-	err := r.db.Model(new(T)).Count(&total).Error
+	// Start building the query
+	query := r.db.Model(new(T))
+
+	// Apply filters to the query
+	for key, value := range filters {
+		query = query.Where(key+" = ?", value)
+	}
+
+	// Get total count of records after applying filters
+	err := query.Count(&total).Error
 	if err != nil {
 		return PaginationResponse[T]{}, err
 	}
 
-	// Apply pagination and get the results
-	err = r.db.Scopes(paginate(limit, page)).Find(&results).Error
+	// Apply pagination scope and get the results with filters applied
+	err = query.Scopes(paginate(limit, page)).Find(&results).Error
 	if err != nil {
 		return PaginationResponse[T]{}, err
 	}
