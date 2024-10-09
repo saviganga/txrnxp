@@ -67,12 +67,8 @@ func ValidateRequestLimitAndPage(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-func (r *GenericDBStruct[T]) GetPagedAndFiltered(
-	limit, page int,
-	filters map[string]interface{},
-	preloads []string,
-	joins []string,
-) (PaginationResponse[T], error) {
+func (r *GenericDBStruct[T]) GetPagedAndFiltered(limit, page int, filters map[string]interface{}, preloads []string, joins []string) (PaginationResponse[T], error) {
+
 	var results []T
 	var total int64
 
