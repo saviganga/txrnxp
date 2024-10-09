@@ -39,13 +39,24 @@ func CreateUser(c *fiber.Ctx) (*user_serializers.UserSerializer, error) {
 func GetUsers(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
-	users := []models.Xuser{}
+	userRepo := utils.NewGenericDB[models.Xuser](db)
 	privilege := authenticated_user["privilege"]
 	if privilege == "ADMIN" {
-		db.Order("created_at desc").Find(&users)
+		users, err := userRepo.GetPagedAndFiltered(c.Locals("size").(int), c.Locals("page").(int))
+		if err != nil {
+			return utils.BadRequestResponse(c, "Unable to get users")
+		}
+		serialized_users := user_serializers.SerializeUsers(users.Data)
+		users.SerializedData = serialized_users
+		users.Status = "Success"
+		users.Message = "Successfully fetched users"
+		users.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, users, "success")
 	} else {
+		users := []models.Xuser{}
 		db.Order("created_at desc").First(&users, "id = ?", authenticated_user["id"])
+		serialized_users := user_serializers.SerializeUsers(users)
+		return utils.SuccessResponse(c, serialized_users[0], "Successfully fetched users")
 	}
-	serialized_users := user_serializers.SerializeUsers(users)
-	return utils.SuccessResponse(c, serialized_users, "Successfully fetched users")
+
 }

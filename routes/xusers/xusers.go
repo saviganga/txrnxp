@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"txrnxp/utils"
 	"txrnxp/utils/auth_utils"
 	"txrnxp/views/xusers"
 
@@ -17,7 +18,7 @@ func Routes(app *fiber.App) {
 	pathPrefix := fmt.Sprintf("/api/%v/users/", version)
 	routes := app.Group(pathPrefix, logger.New())
 
-	routes.Get("", auth_utils.ValidateAuth, xusers.GetUsers)
+	routes.Get("", auth_utils.ValidateAuth, utils.ValidateRequestLimitAndPage, xusers.GetUsers)
 	routes.Post("", xusers.CreateUsers)
 
 	_ = routes
