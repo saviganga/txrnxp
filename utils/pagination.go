@@ -42,6 +42,7 @@ func isStringField(field string) bool {
 		"category":    true,
 		"duration":    true,
 		"entry_type":  true,
+		"ticket_type": true,
 	}
 
 	return stringFields[field]
