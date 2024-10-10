@@ -28,6 +28,20 @@ type PaginationResponse[T any] struct {
 	SerializedData interface{} `json:"data"`
 }
 
+func isStringField(field string) bool {
+    stringFields := map[string]bool{
+        "name":      true,
+        "email":     true,
+        "reference": true,
+        "country":   true,
+		"first_name": true,
+		"last_name": true,
+
+    }
+
+    return stringFields[field]
+}
+
 func NewGenericDB[T any](db *gorm.DB) *GenericDBStruct[T] {
 	return &GenericDBStruct[T]{db: db}
 }
@@ -96,7 +110,12 @@ func (r *GenericDBStruct[T]) GetPagedAndFiltered(limit, page int, filters map[st
 	// apply filters to the query
 	for key, value := range filters {
 		normalizedKey := strings.Replace(key, "__", ".", -1)
-		query = query.Where(fmt.Sprintf("LOWER(%s) LIKE ?", normalizedKey), fmt.Sprintf("%%%s%%", value))
+		parts := strings.Split(normalizedKey, ".")
+		if isStringField(parts[len(parts)-1]) {
+			query = query.Where(fmt.Sprintf("LOWER(%s) LIKE ?", normalizedKey), fmt.Sprintf("%%%s%%", value))	
+		} else {
+			query = query.Where(fmt.Sprintf("%s = ?", normalizedKey), fmt.Sprintf("%s", value))
+		}
 
 	}
 

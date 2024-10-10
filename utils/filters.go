@@ -18,7 +18,7 @@ func ValidateRequestFilters(getTableName func() string) func(c *fiber.Ctx) error
 		table = strings.ToLower(table)
 
 		// validate the model table exists
-		validTables := []string{"xuser", "wallets"}
+		validTables := []string{"xuser", "wallets", "business"}
 		if notInList(table, validTables) {
 			c.Locals("filters", filters)
 			return c.Next()
@@ -29,6 +29,8 @@ func ValidateRequestFilters(getTableName func() string) func(c *fiber.Ctx) error
 			validFields = []string{"email", "first_name", "last_name", "is_active", "is_verified", "is_business"}
 		} else if table == "wallets" {
 			validFields = []string{"u__email", "u__first_name", "u__last_name"}
+		} else if table == "business" {
+			validFields = []string{"u__email", "u__first_name", "u__last_name", "name", "reference"}
 		}
 
 		c.Request().URI().QueryArgs().VisitAll(func(key, value []byte) {

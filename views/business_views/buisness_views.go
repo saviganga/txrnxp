@@ -29,14 +29,44 @@ func CreateBusiness(c *fiber.Ctx) error {
 func GetBusiness(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
-	businesses := []models.Business{}
 	privilege := authenticated_user["privilege"]
+
+	businessRepo := utils.NewGenericDB[models.Business](db)
+
 	if privilege == "ADMIN" {
-		db.Model(&models.Business{}).Joins("User").Order("created_at desc").Find(&businesses)
+		// define filters based on query parameters
+		filters := c.Locals("filters").(map[string]interface{})
+		limit := c.Locals("size").(int)
+		page := c.Locals("page").(int)
+		joins := []string{"LEFT JOIN xusers AS u ON businesses.user_id = u.id"}
+        preloads := []string{"User"}
+		businesses, err := businessRepo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get businesses")
+        }
+		serialized_businesses := business_serializers.SerializeReadBusiness(businesses.Data)
+		businesses.SerializedData = serialized_businesses
+        businesses.Status = "Success"
+        businesses.Message = "Successfully fetched businesses"
+        businesses.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, businesses, "success")
 	} else {
-		db.Model(&models.Business{}).Joins("User").Order("created_at desc").First(&businesses, "businesses.user_id = ?", authenticated_user["id"])
+		joins := []string{"LEFT JOIN xusers AS u ON businesses.user_id = u.id"}
+        preloads := []string{"User"}
+		limit := c.Locals("size").(int)
+		page := c.Locals("page").(int)
+		filters := make(map[string]interface{})
+		filters["u__id"] = authenticated_user["id"]
+		businesses, err := businessRepo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get businesses")
+        }
+		serialized_businesses := business_serializers.SerializeReadBusiness(businesses.Data)
+		businesses.SerializedData = serialized_businesses
+        businesses.Status = "Success"
+        businesses.Message = "Successfully fetched businesses"
+        businesses.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, businesses, "success")
 	}
-	serialized_businesses := business_serializers.SerializeReadBusiness(businesses)
-	return utils.SuccessResponse(c, serialized_businesses, "Successfully fetched businesses")
 
 }
