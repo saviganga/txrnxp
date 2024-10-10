@@ -30,12 +30,17 @@ type PaginationResponse[T any] struct {
 
 func isStringField(field string) bool {
 	stringFields := map[string]bool{
-		"name":       true,
-		"email":      true,
-		"reference":  true,
-		"country":    true,
-		"first_name": true,
-		"last_name":  true,
+		"name":        true,
+		"email":       true,
+		"reference":   true,
+		"country":     true,
+		"first_name":  true,
+		"last_name":   true,
+		"event_type":  true,
+		"description": true,
+		"address":     true,
+		"category":    true,
+		"duration":    true,
 	}
 
 	return stringFields[field]
