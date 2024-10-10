@@ -29,17 +29,16 @@ type PaginationResponse[T any] struct {
 }
 
 func isStringField(field string) bool {
-    stringFields := map[string]bool{
-        "name":      true,
-        "email":     true,
-        "reference": true,
-        "country":   true,
+	stringFields := map[string]bool{
+		"name":       true,
+		"email":      true,
+		"reference":  true,
+		"country":    true,
 		"first_name": true,
-		"last_name": true,
+		"last_name":  true,
+	}
 
-    }
-
-    return stringFields[field]
+	return stringFields[field]
 }
 
 func NewGenericDB[T any](db *gorm.DB) *GenericDBStruct[T] {
@@ -112,7 +111,7 @@ func (r *GenericDBStruct[T]) GetPagedAndFiltered(limit, page int, filters map[st
 		normalizedKey := strings.Replace(key, "__", ".", -1)
 		parts := strings.Split(normalizedKey, ".")
 		if isStringField(parts[len(parts)-1]) {
-			query = query.Where(fmt.Sprintf("LOWER(%s) LIKE ?", normalizedKey), fmt.Sprintf("%%%s%%", value))	
+			query = query.Where(fmt.Sprintf("LOWER(%s) LIKE ?", normalizedKey), fmt.Sprintf("%%%s%%", value))
 		} else {
 			query = query.Where(fmt.Sprintf("%s = ?", normalizedKey), fmt.Sprintf("%s", value))
 		}
