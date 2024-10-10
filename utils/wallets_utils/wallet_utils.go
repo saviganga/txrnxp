@@ -136,15 +136,26 @@ func GetUserWalletTransactions(c *fiber.Ctx) error {
 func GetAdminWalletTransactions(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
-	wallet_tx := []models.AdminTransactionEntries{}
+	txRepo := utils.NewGenericDB[models.AdminTransactionEntries](db)
 	privilege := authenticated_user["privilege"]
+	filters := c.Locals("filters").(map[string]interface{})
+	limit := c.Locals("size").(int)
+	page := c.Locals("page").(int)
+
 	if privilege == "ADMIN" {
-		db.Model(&models.AdminTransactionEntries{}).Order("created_at desc").Find(&wallet_tx)
+		wallet_tx, err := txRepo.GetPagedAndFiltered(limit, page, filters, nil, nil)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get wallets")
+        }
+		serialized_wallet_txs := wallet_serializers.SerializeGetAdminWalletEntries(wallet_tx.Data)
+		wallet_tx.SerializedData = serialized_wallet_txs
+		wallet_tx.Status = "Success"
+		wallet_tx.Message = "Successfully fetched wallet transactions"
+		wallet_tx.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, wallet_tx, "success")
 	} else {
 		return utils.BadRequestResponse(c, "Oops! You do not have permission to perform this action")
 	}
-	serialized_wallet_txs := wallet_serializers.SerializeGetAdminWalletEntries(wallet_tx)
-	return utils.SuccessResponse(c, serialized_wallet_txs, "Successfully fetched wallet transactions")
 
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"txrnxp/utils"
 	"txrnxp/views/wallets"
 	"txrnxp/utils/auth_utils"
 	"txrnxp/views/admin_views"
@@ -24,7 +25,15 @@ func Routes(app *fiber.App) {
 	routes.Post("/config", auth_utils.ValidateAuth, admin_views.CreateAdminCommissionConfig)
 	routes.Patch("/config/:id", auth_utils.ValidateAuth, admin_views.UpdateAdminCommissionConfig)
 	routes.Get("/wallet", auth_utils.ValidateAuth, wallets.GetAdminWallet)
-	routes.Get("wallet/entries", auth_utils.ValidateAuth, wallets.GetAdminWalletTransactions)
+	routes.Get(
+		"wallet/entries",
+		auth_utils.ValidateAuth,
+		utils.ValidateRequestLimitAndPage,
+		utils.ValidateRequestFilters(func() string {
+			return "admin_wallet_tx"
+		}),
+		wallets.GetAdminWalletTransactions,
+	)
 	// routes.Get("admin/admin", auth_utils.ValidateAuth, wallets.CreateAdminWallet)
 
 	_ = routes
