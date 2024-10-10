@@ -41,3 +41,12 @@ func ConvertStringToFloat(amount string) (float64, error) {
 	return amount_float, nil
 
 }
+
+func notInList(value string, list []string) bool {
+	for _, v := range list {
+		if v == value {
+			return false
+		}
+	}
+	return true
+}

@@ -18,7 +18,15 @@ func Routes(app *fiber.App) {
 	pathPrefix := fmt.Sprintf("/api/%v/users/", version)
 	routes := app.Group(pathPrefix, logger.New())
 
-	routes.Get("", auth_utils.ValidateAuth, utils.ValidateRequestLimitAndPage, xusers.GetUsers)
+	routes.Get(
+		"",
+		auth_utils.ValidateAuth,
+		utils.ValidateRequestLimitAndPage,
+		utils.ValidateRequestFilters(func() string {
+			return "xuser"
+		}),
+		xusers.GetUsers,
+	)
 	routes.Post("", xusers.CreateUsers)
 
 	_ = routes
