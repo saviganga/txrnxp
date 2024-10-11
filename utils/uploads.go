@@ -32,6 +32,14 @@ var presignClient *s3.PresignClient
 
 func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string) (UploadImageResponse[T], error) {
 
+	// validate db model
+	var model T
+	var bucketName string
+	var objectKey string
+	var imageData []byte
+	var err error
+	var imageField reflect.Value
+
 	table = strings.ToLower(table)
 	validTables := []string{"xuser", "business", "event", "event_ticket", "user_ticket"}
 	if notInList(table, validTables) {
@@ -41,15 +49,14 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string) (UploadImag
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 
 	if table == "xuser" {
-
-		// validate db model
-		var model T
+		
 		if err := r.db.First(&model, "id = ?", authenticated_user["id"].(string)).Error; err != nil {
 			return UploadImageResponse[T]{}, errors.New("model not found")
 		}
 
+		// validate model image field
 		modelValue := reflect.ValueOf(&model).Elem()
-		imageField := modelValue.FieldByName("Image")
+		imageField = modelValue.FieldByName("Image")
 		if !imageField.IsValid() {
 			return UploadImageResponse[T]{}, errors.New("model does not have an Image field")
 		}
@@ -72,7 +79,7 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string) (UploadImag
 			return UploadImageResponse[T]{}, errors.New("invalid image data")
 		}
 
-		imageData, err := base64.StdEncoding.DecodeString(parts[1])
+		imageData, err = base64.StdEncoding.DecodeString(parts[1])
 		if err != nil {
 			return UploadImageResponse[T]{}, errors.New("unable to decode image")
 		}
@@ -85,45 +92,93 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string) (UploadImag
 
 		emailValue := emailField.Interface().(string)
 		fileName := emailValue + ".png"
-		bucketName := "txrnxp"
-		objectKey := "users/" + fileName
+		bucketName = "txrnxp"
+		objectKey = "users/" + fileName
 
-		_, err = s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
-			Bucket:      aws.String(bucketName),
-			Key:         aws.String(objectKey),
-			Body:        strings.NewReader(string(imageData)),
-			ContentType: aws.String("image/png"),
-		})
-		if err != nil {
-			return UploadImageResponse[T]{}, fmt.Errorf("failed to upload image to S3: %w", err)
-		}
-
-		s3URL := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", bucketName, objectKey)
-
-		// set the Image field with the new file path
-		imageField.SetString(s3URL)
-
-		if err := r.db.Save(&model).Error; err != nil {
-			return UploadImageResponse[T]{}, errors.New("unable to update model")
-		}
-
-		return UploadImageResponse[T]{
-			Data: model,
-		}, nil
 	} else {
 		return UploadImageResponse[T]{}, errors.New("workflow not ready. BE PATIENT NIGGGGAAAAAA")
 	}
 
+	_, err = s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket:      aws.String(bucketName),
+		Key:         aws.String(objectKey),
+		Body:        strings.NewReader(string(imageData)),
+		ContentType: aws.String("image/png"),
+	})
+	if err != nil {
+		return UploadImageResponse[T]{}, fmt.Errorf("failed to upload image to S3: %w", err)
+	}
+
+	s3URL := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", bucketName, objectKey)
+
+	// set the Image field with the new file path
+	imageField.SetString(s3URL)
+
+	if err := r.db.Save(&model).Error; err != nil {
+		return UploadImageResponse[T]{}, errors.New("unable to update model")
+	}
+
+	return UploadImageResponse[T]{
+		Data: model,
+	}, nil
+
 }
 
-func GeneratePresignedURL(bucketName string, objectKey string) (string, error) {
+func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string) (string, error) {
+
+	var model T
+	var bucketName string
+	var objectKey string
+	var err error
+	var imageField reflect.Value
+
+	table = strings.ToLower(table)
+	validTables := []string{"xuser", "business", "event", "event_ticket", "user_ticket"}
+	if notInList(table, validTables) {
+		return "", errors.New("invalid model")
+	}
+
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+
+	if table == "xuser" {
+
+		if err := r.db.First(&model, "id = ?", authenticated_user["id"].(string)).Error; err != nil {
+			return "", errors.New("model not found")
+		}
+
+		modelValue := reflect.ValueOf(&model).Elem()
+		imageField = modelValue.FieldByName("Image")
+		if !imageField.IsValid() {
+			return "", errors.New("model does not have an Image field")
+		}
+
+		// generate filename and save
+		emailField := modelValue.FieldByName("Email")
+		if !emailField.IsValid() {
+			return "", errors.New("model does not have an Email field")
+		}
+
+		emailValue := emailField.Interface().(string)
+		fileName := emailValue + ".png"
+		bucketName = "txrnxp"
+		objectKey = "users/" + fileName
+
+	} else {
+
+		return "", errors.New("workflow not ready. BE PATIENT NIGGGGAAAAAA")
+
+	}
+
 	presignedURL, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectKey),
 	}, s3.WithPresignExpires(15*time.Minute))
+
 	if err != nil {
 		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
 
 	return presignedURL.URL, nil
+
 }
+
