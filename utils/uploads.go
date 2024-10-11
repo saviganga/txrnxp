@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go/aws"
@@ -27,6 +28,7 @@ type UploadImageResponse[T any] struct {
 }
 
 var s3Client *s3.Client
+var presignClient *s3.PresignClient
 
 func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string) (UploadImageResponse[T], error) {
 
@@ -112,4 +114,16 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string) (UploadImag
 		return UploadImageResponse[T]{}, errors.New("workflow not ready. BE PATIENT NIGGGGAAAAAA")
 	}
 
+}
+
+func GeneratePresignedURL(bucketName string, objectKey string) (string, error) {
+	presignedURL, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(objectKey),
+	}, s3.WithPresignExpires(15*time.Minute))
+	if err != nil {
+		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
+	}
+
+	return presignedURL.URL, nil
 }

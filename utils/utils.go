@@ -46,8 +46,9 @@ func init() {
         log.Fatalf("unable to load SDK config, %v", err)
     }
 
-    // create an S3 client
+    // create an S3 clients
     s3Client = s3.NewFromConfig(cfg)
+	presignClient = s3.NewPresignClient(s3Client)
 
 }
 

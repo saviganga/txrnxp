@@ -56,6 +56,17 @@ func GetUsers(c *fiber.Ctx) error {
 	} else {
 		users := []models.Xuser{}
 		db.Order("created_at desc").First(&users, "id = ?", authenticated_user["id"])
+		if users[0].Image != "" {
+			fileName := users[0].Email + ".png"
+			imageUrl, err := utils.GeneratePresignedURL("txrnxp", "users/" + fileName)
+			if err != nil {
+				return utils.BadRequestResponse(c, "Unable to load user image")
+			}
+			serialized_users := user_serializers.SerializeUsers(users)
+			serialized_users[0].Image = imageUrl
+			return utils.SuccessResponse(c, serialized_users[0], "Successfully fetched users")
+
+		}
 		serialized_users := user_serializers.SerializeUsers(users)
 		return utils.SuccessResponse(c, serialized_users[0], "Successfully fetched users")
 	}
