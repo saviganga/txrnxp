@@ -2,6 +2,7 @@ package xusers_utils
 
 import (
 	"errors"
+	"strings"
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/serializers/user_serializers"
@@ -58,5 +59,32 @@ func GetUsers(c *fiber.Ctx) error {
 		serialized_users := user_serializers.SerializeUsers(users)
 		return utils.SuccessResponse(c, serialized_users[0], "Successfully fetched users")
 	}
+
+}
+
+
+func UploadUserImage(c *fiber.Ctx) error {
+
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	userRepo := utils.NewGenericDB[models.Xuser](db)
+	privilege := authenticated_user["privilege"].(string)
+
+	if strings.ToUpper(privilege) == "ADMIN" {
+		return utils.BadRequestResponse(c, "this feature is not available for admins")
+	}
+
+	user, err := userRepo.UploadImage(c, "xuser")
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	serialized_user := user_serializers.SerializeUserSerializer(user.Data)
+	user.SerializedData = serialized_user
+	user.Status = "Success"
+	user.Message = "Successfully uploaded user image"
+	user.Type = "OK"
+	return utils.SuccessResponse(c, serialized_user, "Successfully uploaded user image")
+
 
 }
