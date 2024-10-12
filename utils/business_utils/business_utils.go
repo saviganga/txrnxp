@@ -49,6 +49,29 @@ func CreateBusiness(c *fiber.Ctx) (*business_serializers.ReadCreateBusinessSeria
 	return serialized_business, nil
 }
 
+
+func GetBusinessById(c *fiber.Ctx) error {
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	business := models.Business{}
+	privilege := authenticated_user["privilege"]
+	err := db.First(&business, "id = ?", c.Params("id")).Error
+		if err != nil {
+			return utils.BadRequestResponse(c, "Unable to get user")
+		}
+	if privilege != "ADMIN" && authenticated_user["id"].(string) != business.UserId.String() {
+		return utils.BadRequestResponse(c, "You do not have permission to view this resource")
+	}
+
+	serialized_user, err := business_serializers.SerializeCreateBusiness(business, c)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	return utils.SuccessResponse(c, serialized_user, "success")
+
+}
+
 func UploadBusinessImage(c *fiber.Ctx) error {
 
 	authenticated_user := c.Locals("user").(jwt.MapClaims)

@@ -27,6 +27,11 @@ func Routes(app *fiber.App) {
 		}),
 		business_views.GetBusiness,
 	)
+	routes.Get(
+		":id/",
+		auth_utils.ValidateAuth,
+		business_views.GetBusinessById,
+	)
 	routes.Post("", auth_utils.ValidateAuth, business_views.CreateBusiness)
 	routes.Post(":id/upload-image/", auth_utils.ValidateAuth, business_validators.ValidateBusinessOwner, business_views.UploadBusinessImage)
 
