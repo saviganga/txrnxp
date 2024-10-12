@@ -123,6 +123,6 @@ func UploadEventImage(c *fiber.Ctx) error {
 	event.Status = "Success"
 	event.Message = "Successfully uploaded event image"
 	event.Type = "OK"
-	return utils.SuccessResponse(c, serialized_event, "Successfully uploaded user image")
+	return utils.SuccessResponse(c, serialized_event, "Successfully uploaded event image")
 
 }

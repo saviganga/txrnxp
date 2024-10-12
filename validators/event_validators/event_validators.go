@@ -15,7 +15,6 @@ func ValidateEventOrganiser(c *fiber.Ctx) error {
 	db := initialisers.ConnectDb().Db
 	organiser_user := []models.Xuser{}
 	organiser_business := []models.Business{}
-	// organiser_details := make(map[string]interface{})
 	event_id := c.Params("id")
 	event := models.Event{}
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
@@ -34,10 +33,6 @@ func ValidateEventOrganiser(c *fiber.Ctx) error {
 		if organiser_business[0].UserId.String() != authenticated_user["id"] {
 			return utils.BadRequestResponse(c, "this feature is only available for event organisers")
 		}
-		// organiser_details["name"] = organiser_business[0].Name
-		// organiser_details["is_business"] = true
-		// organiser_details["id"] = event.OrganiserId
-		// organiser_details["business_user"] = organiser_business[0].UserId.String()
 	} else {
 		err := db.Model(&models.Xuser{}).First(&organiser_user, "id = ?", event.OrganiserId).Error
 		if err != nil {
@@ -46,10 +41,7 @@ func ValidateEventOrganiser(c *fiber.Ctx) error {
 		if organiser_user[0].Id.String() != authenticated_user["id"] {
 			return utils.BadRequestResponse(c, "this feature is only available for event organisers")
 		}
-		// organiser_details["name"] = organiser_user[0].UserName
-		// organiser_details["is_business"] = false
-		// organiser_details["id"] = event.OrganiserId
-		// organiser_details["business_user"] = ""
+		
 	}
 
 	return c.Next()

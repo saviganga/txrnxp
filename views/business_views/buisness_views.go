@@ -44,7 +44,10 @@ func GetBusiness(c *fiber.Ctx) error {
         if err != nil {
             return utils.BadRequestResponse(c, "Unable to get businesses")
         }
-		serialized_businesses := business_serializers.SerializeReadBusiness(businesses.Data)
+		serialized_businesses, err := business_serializers.SerializeReadBusiness(businesses.Data, c)
+		if err != nil {
+			return utils.BadRequestResponse(c, err.Error())
+		}
 		businesses.SerializedData = serialized_businesses
         businesses.Status = "Success"
         businesses.Message = "Successfully fetched businesses"
@@ -61,7 +64,10 @@ func GetBusiness(c *fiber.Ctx) error {
         if err != nil {
             return utils.BadRequestResponse(c, "Unable to get businesses")
         }
-		serialized_businesses := business_serializers.SerializeReadBusiness(businesses.Data)
+		serialized_businesses, err := business_serializers.SerializeReadBusiness(businesses.Data, c)
+		if err != nil {
+			return utils.BadRequestResponse(c, err.Error())
+		}
 		businesses.SerializedData = serialized_businesses
         businesses.Status = "Success"
         businesses.Message = "Successfully fetched businesses"
@@ -69,4 +75,8 @@ func GetBusiness(c *fiber.Ctx) error {
 		return utils.PaginatedSuccessResponse(c, businesses, "success")
 	}
 
+}
+
+func UploadBusinessImage(c *fiber.Ctx) error {
+	return business_utils.UploadBusinessImage(c)
 }

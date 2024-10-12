@@ -154,25 +154,6 @@ func SerializeReadEventsList(events []models.Event, c *fiber.Ctx) ([]EventListSe
 			return nil, errors.New(err.Error())
 		}
 
-		// if is_business {
-		// 	err := db.Model(&models.Business{}).First(&organiser_business, "id = ?", organiser_id).Error
-		// 	if err != nil {
-		// 		return nil, fmt.Errorf(fmt.Sprintf("oops! unable to fetch events - organiser: %s", event.Reference))
-		// 	}
-		// 	organiser_details["name"] = organiser_business[0].Name
-		// 	organiser_details["is_business"] = true
-		// 	organiser_details["id"] = organiser_id
-
-		// } else {
-		// 	err := db.Model(&models.Xuser{}).First(&organiser_user, "id = ?", organiser_id).Error
-		// 	if err != nil {
-		// 		return nil, fmt.Errorf(fmt.Sprintf("oops! unable to fetch events - organiser: %s", event.Reference))
-		// 	}
-		// 	organiser_details["name"] = organiser_user[0].UserName
-		// 	organiser_details["is_business"] = false
-		// 	organiser_details["id"] = organiser_id
-		// }
-
 		if event.Image != "" {
 			imageUrl, err = eventRepo.GetSignedUrl(c, "event", event.Id.String())
 			if err != nil {

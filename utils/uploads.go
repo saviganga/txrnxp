@@ -142,6 +142,63 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string, id string) 
 		bucketName = "txrnxp"
 		objectKey = "events/" + fileName
 
+	} else if table == "business" {
+
+		if err := r.db.First(&model, "id = ?", id).Error; err != nil {
+			return UploadImageResponse[T]{}, errors.New("model not found")
+		}
+
+		// validate model image field
+		modelValue := reflect.ValueOf(&model).Elem()
+		imageField = modelValue.FieldByName("Image")
+		if !imageField.IsValid() {
+			return UploadImageResponse[T]{}, errors.New("model does not have an Image field")
+		}
+
+		// validate the request body
+		body := new(UploadImageSerializer)
+
+		if err := c.BodyParser(&body); err != nil {
+			return UploadImageResponse[T]{}, err
+		}
+
+		// validate the base64 encoding
+		if !strings.Contains(body.Image, "data:image") {
+			return UploadImageResponse[T]{}, errors.New("invalid image format")
+		}
+
+		// get image data from base 64 string
+		parts := strings.Split(body.Image, ",")
+		if len(parts) < 2 {
+			return UploadImageResponse[T]{}, errors.New("invalid image data")
+		}
+
+		imageData, err = base64.StdEncoding.DecodeString(parts[1])
+		if err != nil {
+			return UploadImageResponse[T]{}, errors.New("unable to decode image")
+		}
+
+		// validate reference field
+		referenceField := modelValue.FieldByName("Reference")
+		if !referenceField.IsValid() {
+			return UploadImageResponse[T]{}, errors.New("model does not have an Reference field")
+		}
+		referenceValue := referenceField.Interface().(string)
+
+		// generate filename and save
+		nameField := modelValue.FieldByName("Name")
+		if !nameField.IsValid() {
+			return UploadImageResponse[T]{}, errors.New("model does not have an Name field")
+		}
+
+		nameValue := nameField.Interface().(string)
+		fileName := nameValue + referenceValue + ".png"
+		bucketName = "txrnxp"
+		objectKey = "businesses/" + fileName
+
+
+
+
 	} else {
 		return UploadImageResponse[T]{}, errors.New("workflow not ready. BE PATIENT NIGGGGAAAAAA")
 	}
@@ -170,6 +227,8 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string, id string) 
 	}, nil
 
 }
+
+
 
 func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string, id string) (string, error) {
 
@@ -231,6 +290,43 @@ func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string, id string)
 		fileName := referenceValue + ".png"
 		bucketName = "txrnxp"
 		objectKey = "events/" + fileName
+
+	} else if table == "business" {
+
+		if err := r.db.First(&model, "id = ?", id).Error; err != nil {
+			return "", errors.New("model not found")
+		}
+
+		modelValue := reflect.ValueOf(&model).Elem()
+
+		imageField = modelValue.FieldByName("Image")
+		if !imageField.IsValid() {
+			return "", errors.New("model does not have an Image field")
+		}
+
+		// generate filename and save
+		nameField := modelValue.FieldByName("Name")
+		if !nameField.IsValid() {
+			return "", errors.New("model does not have an Name field")
+		}
+
+		nameValue := nameField.Interface().(string)
+
+		// generate filename and save
+		referenceField := modelValue.FieldByName("Reference")
+		if !referenceField.IsValid() {
+			return "", errors.New("model does not have an Reference field")
+		}
+
+		referenceValue := referenceField.Interface().(string)
+		fileName := nameValue + referenceValue + ".png"
+		bucketName = "txrnxp"
+		objectKey = "businesses/" + fileName
+
+
+
+
+
 
 	} else {
 

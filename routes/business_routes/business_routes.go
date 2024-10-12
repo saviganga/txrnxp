@@ -5,6 +5,7 @@ import (
 	"os"
 	"txrnxp/utils"
 	"txrnxp/utils/auth_utils"
+	"txrnxp/validators/business_validators"
 	"txrnxp/views/business_views"
 
 	"github.com/gofiber/fiber/v2"
@@ -27,6 +28,7 @@ func Routes(app *fiber.App) {
 		business_views.GetBusiness,
 	)
 	routes.Post("", auth_utils.ValidateAuth, business_views.CreateBusiness)
+	routes.Post(":id/upload-image/", auth_utils.ValidateAuth, business_validators.ValidateBusinessOwner, business_views.UploadBusinessImage)
 
 	_ = routes
 }
