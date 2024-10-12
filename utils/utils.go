@@ -159,16 +159,55 @@ func (r *GenericDBStruct[T]) UpdateEntity(c *fiber.Ctx, table string, id string)
 
 		}
 
-		if err := r.db.Save(&model).Error; err != nil {
-			return UpdateEntityResponse[T]{}, errors.New("unable to update model")
+	} else if table == "business" {
+
+		if err := r.db.First(&model, "id = ?", id).Error; err != nil {
+			return UpdateEntityResponse[T]{}, errors.New("model not found")
 		}
 
-		return UpdateEntityResponse[T]{
-			Data: model,
-		}, nil
+		modelValue = reflect.ValueOf(&model).Elem()
+
+		// validate business owner
+		UserIdField := modelValue.FieldByName("UserId")
+		if !UserIdField.IsValid() {
+			return UpdateEntityResponse[T]{}, errors.New("model does not have UserId field")
+		}
+		UserIdValue := UserIdField.Interface().(uuid.UUID).String()
+
+		if authenticated_user["id"].(string) != UserIdValue {
+			return UpdateEntityResponse[T]{}, errors.New("you do not have permission to perform this action")
+		}
+
+		for i := 0; i < val.NumField(); i++ {
+
+			// get the field name
+			fieldName := typ.Field(i).Name
+
+			// get the field value
+			fieldValue := val.Field(i).Interface()
+
+			// get the values in the fields
+			// modelValue = reflect.ValueOf(&model).Elem()
+			modelField = modelValue.FieldByName(fieldName)
+			if !modelField.IsValid() {
+				return UpdateEntityResponse[T]{}, errors.New("model does not have " + fieldName + "field")
+			}
+
+			// update the field value
+			modelField.SetString(fieldValue.(string))
+
+		}
 
 	} else {
 		return UpdateEntityResponse[T]{}, errors.New("chill out for the workflow to be ready my guy")
 	}
+
+	if err := r.db.Save(&model).Error; err != nil {
+		return UpdateEntityResponse[T]{}, errors.New("unable to update model")
+	}
+
+	return UpdateEntityResponse[T]{
+		Data: model,
+	}, nil
 
 }

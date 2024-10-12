@@ -63,12 +63,40 @@ func GetBusinessById(c *fiber.Ctx) error {
 		return utils.BadRequestResponse(c, "You do not have permission to view this resource")
 	}
 
-	serialized_user, err := business_serializers.SerializeCreateBusiness(business, c)
+	serialized_business, err := business_serializers.SerializeCreateBusiness(business, c)
 	if err != nil {
 		return utils.BadRequestResponse(c, err.Error())
 	}
 
-	return utils.SuccessResponse(c, serialized_user, "success")
+	return utils.SuccessResponse(c, serialized_business, "success")
+
+}
+
+
+func UpdateBusiness(c *fiber.Ctx) error {
+
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	businessRepo := utils.NewGenericDB[models.Business](db)
+	privilege := authenticated_user["privilege"].(string)
+	business_id := c.Params("id")
+
+	if strings.ToUpper(privilege) == "ADMIN" {
+		return utils.BadRequestResponse(c, "this feature is not available for admins")
+	}
+
+	business, err := businessRepo.UpdateEntity(c, "business", business_id)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	serialized_business, err := business_serializers.SerializeCreateBusiness(business.Data, c)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	return utils.SuccessResponse(c, serialized_business, "success")
+
 
 }
 
