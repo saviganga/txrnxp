@@ -1,19 +1,27 @@
 package ticket_utils
 
 import (
+	"bytes"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"strings"
+
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/serializers/event_serializers"
 	"txrnxp/serializers/ticket_serializers"
 	"txrnxp/utils"
+	"txrnxp/utils/admin_utils"
 	"txrnxp/utils/db_utils"
 	"txrnxp/utils/wallets_utils"
+
+	"image/png"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+	"github.com/skip2/go-qrcode"
 )
 
 func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSerializer, error) {
@@ -22,8 +30,6 @@ func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSe
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	eventTicket := new(models.EventTicket)
 	event := []models.Event{}
-
-	serialized_event_ticket := new(event_serializers.ReadCreateEventTicketSerializer)
 
 	// create reference
 	reference := utils.CreateEventReference()
@@ -67,129 +73,185 @@ func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSe
 		return nil, errors.New(err.Error())
 	}
 
-	serialized_event_ticket.Id = eventTicket.Id
-	serialized_event_ticket.Price = eventTicket.Price
-	serialized_event_ticket.Reference = eventTicket.Reference
-	serialized_event_ticket.IsPaid = eventTicket.IsPaid
-	serialized_event_ticket.IsInviteOnly = eventTicket.IsInviteOnly
-	serialized_event_ticket.TicketType = eventTicket.TicketType
-	serialized_event_ticket.Description = eventTicket.Description
-	serialized_event_ticket.Perks = eventTicket.Perks
-	serialized_event_ticket.PurchaseLimit = eventTicket.PurchaseLimit
-	serialized_event_ticket.IsLimitedStock = eventTicket.IsLimitedStock
-	serialized_event_ticket.StockNumber = eventTicket.StockNumber
-	serialized_event_ticket.SoldTickets = eventTicket.SoldTickets
-	serialized_event_ticket.CreatedAt = eventTicket.CreatedAt
-	serialized_event_ticket.UpdatedAt = eventTicket.UpdatedAt
+	serialized_event_ticket := event_serializers.SerializeCreateEventTicket(*eventTicket)
 
-	return serialized_event_ticket, nil
+	return &serialized_event_ticket, nil
 }
 
-func GetEventTickets(user_id string, entity string, c *fiber.Ctx) ([]event_serializers.ReadEventTicketSerializer, error) {
+func GetEventTickets(user_id string, entity string, c *fiber.Ctx) error {
 	db := initialisers.ConnectDb().Db
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
-	event_tickets := []models.EventTicket{}
-	serialized_event_ticket := new(event_serializers.ReadEventTicketSerializer)
-	serialized_event_tickets := []event_serializers.ReadEventTicketSerializer{}
 	privilege := authenticated_user["privilege"].(string)
+	repo := utils.NewGenericDB[models.EventTicket](db)
+
+	limit := c.Locals("size").(int)
+	page := c.Locals("page").(int)
+	joins := []string{"LEFT JOIN events as event ON event_tickets.event_id = event.id"}
+	preloads := []string{"Event"}
 
 	if strings.ToUpper(privilege) == "ADMIN" {
-		result := db.Model(&models.EventTicket{}).Joins("Event").Order("created_at desc").Find(&event_tickets)
-		if result.Error != nil {
-			return nil, result.Error
-		}
+
+		filters := c.Locals("filters").(map[string]interface{})
+		event_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get event tickets")
+        }
+		serialized_event_tickets := event_serializers.SerializeGetEventTickets(event_tickets.Data)
+		event_tickets.SerializedData = serialized_event_tickets
+        event_tickets.Status = "Success"
+        event_tickets.Message = "Successfully fetched event tickets"
+        event_tickets.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, event_tickets, "success")
+
 	} else {
 
 		if strings.ToUpper(entity) == "BUSINESS" {
+			filters := make(map[string]interface{})
+
 			businesses := []models.Business{}
 			err := db.First(&businesses, "user_id = ?", user_id).Error
 			if err != nil {
-				return nil, errors.New("oops! this user is not a business")
+				return utils.BadRequestResponse(c, "Oops! This user is not a business")
 			}
 			business_id := businesses[0].Id.String()
-			result := db.Model(&models.EventTicket{}).
-				Joins("LEFT JOIN events ON events.id = event_tickets.event_id").
-				Where("events.organiser_id = ?", business_id).
-				Preload("Event").
-				Order("event_tickets.created_at desc").
-				Find(&event_tickets)
-			if result.Error != nil {
-				return nil, result.Error
+
+			filters["event__organiser_id"] = business_id
+
+			event_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+			if err != nil {
+				return utils.BadRequestResponse(c, "Unable to get businesses")
 			}
+			serialized_event_tickets := event_serializers.SerializeGetEventTickets(event_tickets.Data)
+			event_tickets.SerializedData = serialized_event_tickets
+			event_tickets.Status = "Success"
+			event_tickets.Message = "Successfully fetched event_tickets"
+			event_tickets.Type = "OK"
+			return utils.PaginatedSuccessResponse(c, event_tickets, "success")
+
 		} else {
+			
+			filters := make(map[string]interface{})
 			organiser_id := user_id
-			result := db.Model(&models.EventTicket{}).
-				Joins("LEFT JOIN events ON events.id = event_tickets.event_id").
-				Where("events.organiser_id = ?", organiser_id).
-				Preload("Event").
-				Order("event_tickets.created_at desc").
-				Find(&event_tickets)
-			if result.Error != nil {
-				return nil, result.Error
+			filters["event__organiser_id"] = organiser_id
+
+			event_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+			if err != nil {
+				return utils.BadRequestResponse(c, "Unable to get businesses")
 			}
+			serialized_event_tickets := event_serializers.SerializeGetEventTickets(event_tickets.Data)
+			event_tickets.SerializedData = serialized_event_tickets
+			event_tickets.Status = "Success"
+			event_tickets.Message = "Successfully fetched event_tickets"
+			event_tickets.Type = "OK"
+			return utils.PaginatedSuccessResponse(c, event_tickets, "success")
 
 		}
 	}
 
-	for _, ticket := range event_tickets {
-
-		ticket_event := ticket.Event
-		serialized_event := event_serializers.ReadCreateEventSerializer{
-			EventId:     ticket_event.Id,
-			Reference:   ticket_event.Reference,
-			IsBusiness:  ticket_event.IsBusiness,
-			Name:        ticket_event.Name,
-			EventType:   ticket_event.EventType,
-			Description: ticket_event.Description,
-			Address:     ticket_event.Address,
-			Category:    ticket_event.Category,
-			Duration:    ticket_event.Duration,
-			StartTime:   ticket_event.StartTime,
-			EndTime:     ticket_event.EndTime,
-			CreatedAt:   ticket_event.CreatedAt,
-			UpdatedAt:   ticket_event.UpdatedAt,
-		}
-
-		serialized_event_ticket.Id = ticket.Id
-		serialized_event_ticket.Event = serialized_event
-		serialized_event_ticket.Price = ticket.Price
-		serialized_event_ticket.Reference = ticket.Reference
-		serialized_event_ticket.IsPaid = ticket.IsPaid
-		serialized_event_ticket.IsInviteOnly = ticket.IsInviteOnly
-		serialized_event_ticket.TicketType = ticket.TicketType
-		serialized_event_ticket.Description = ticket.Description
-		serialized_event_ticket.Perks = ticket.Perks
-		serialized_event_ticket.PurchaseLimit = ticket.PurchaseLimit
-		serialized_event_ticket.IsLimitedStock = ticket.IsLimitedStock
-		serialized_event_ticket.StockNumber = ticket.StockNumber
-		serialized_event_ticket.SoldTickets = ticket.SoldTickets
-		serialized_event_ticket.CreatedAt = ticket.CreatedAt
-		serialized_event_ticket.UpdatedAt = ticket.UpdatedAt
-
-		serialized_event_tickets = append(serialized_event_tickets, *serialized_event_ticket)
-
-	}
-
-	return serialized_event_tickets, nil
 }
 
-func GetUserTickets(user_id string, entity string) ([]event_serializers.ReadUserTicketSerializer, error) {
+func GetUserTickets(user_id string, entity string, c *fiber.Ctx) error {
+	db := initialisers.ConnectDb().Db
+	// user_tickets := []models.UserTicket{}
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	privilege := authenticated_user["privilege"].(string)
+
+	repo := utils.NewGenericDB[models.UserTicket](db)
+
+	limit := c.Locals("size").(int)
+	page := c.Locals("page").(int)
+	joins := []string{"LEFT JOIN event_tickets as event_ticket ON user_tickets.event_ticket_id = event_ticket.id", "LEFT JOIN xusers as u ON user_tickets.user_id = u.id"}
+	preloads := []string{"EventTicket.Event", "User"}
+	filters := c.Locals("filters").(map[string]interface{})
+
+	if strings.ToUpper(privilege) == "ADMIN" {
+		user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get event tickets")
+        }
+
+		serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets.Data)
+		if err != nil {
+			return utils.BadRequestResponse(c, err.Error())
+		}
+		user_tickets.SerializedData = serialized_user_tickets
+        user_tickets.Status = "Success"
+        user_tickets.Message = "Successfully fetched event tickets"
+        user_tickets.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, user_tickets, "success")
+	}
+
+	if strings.ToUpper(entity) == "BUSINESS" {
+		return utils.BadRequestResponse(c, "This feature is not available for businesses")
+	} else {
+
+		filters["u__id"] = user_id
+
+		user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get event tickets")
+        }
+
+		serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets.Data)
+		if err != nil {
+			return utils.BadRequestResponse(c, err.Error())
+		}
+		user_tickets.SerializedData = serialized_user_tickets
+        user_tickets.Status = "Success"
+        user_tickets.Message = "Successfully fetched event tickets"
+        user_tickets.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, user_tickets, "success")
+
+	}
+
+}
+
+
+func GetUserTicketByReference(c *fiber.Ctx) (*event_serializers.ReadUserTicketSerializer, error) {
+
 	db := initialisers.ConnectDb().Db
 	user_tickets := []models.UserTicket{}
+	reference := c.Params("reference")
+	entity := c.Get("Entity")
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	user_id := authenticated_user["id"].(string)
 
 	if strings.ToUpper(entity) == "BUSINESS" {
 		return nil, errors.New("oops! this feature is not available for businesses")
 	} else {
-		result := db.Model(&models.UserTicket{}).
-			Preload("EventTicket.Event").
-			Joins("User").
-			Where("user_tickets.user_id = ?", user_id).
-			Order("created_at desc").
-			Find(&user_tickets)
+		if strings.ToUpper(authenticated_user["privilege"].(string)) != "ADMIN" {
+			result := db.Model(&models.UserTicket{}).
+				Preload("EventTicket.Event").
+				Joins("User").
+				Where("user_tickets.reference = ?", reference).
+				Order("created_at desc").
+				First(&user_tickets)
 
-		if result.Error != nil {
-			return nil, result.Error
+			if result.Error != nil {
+				return nil, result.Error
+			}
+			user_id_uuid, err := utils.ConvertStringToUUID(user_id)
+			if err != nil {
+				return nil, err
+			}
+			if user_tickets[0].EventTicket.Event.OrganiserId != user_id && user_tickets[0].UserId != user_id_uuid {
+				return nil, errors.New("oops! you do not have permission to view this resource")
+			}
+		} else {
+
+			result := db.Model(&models.UserTicket{}).
+				Preload("EventTicket.Event").
+				Joins("User").
+				Where("user_tickets.reference = ?", reference).
+				Order("created_at desc").
+				First(&user_tickets)
+
+			if result.Error != nil {
+				return nil, result.Error
+			}
+
 		}
+
 	}
 
 	serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets)
@@ -197,8 +259,10 @@ func GetUserTickets(user_id string, entity string) ([]event_serializers.ReadUser
 		return nil, err
 	}
 
-	return serialized_user_tickets, nil
+	return &serialized_user_tickets[0], nil
+
 }
+
 
 func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSerializer, error) {
 
@@ -233,7 +297,11 @@ func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSeri
 	}
 
 	// get the eventTicket
-	result := db.Find(&eventTicket, "id = ?", user_request.EventTicketId)
+	result := db.Model(&models.EventTicket{}).
+		Joins("LEFT JOIN events ON events.id = event_tickets.event_id").
+		Preload("Event").
+		Order("event_tickets.created_at desc").
+		First(&eventTicket, "event_tickets.id = ?", user_request.EventTicketId)
 	if result.Error != nil {
 		return nil, errors.New("invalid eventTicket")
 	}
@@ -252,18 +320,39 @@ func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSeri
 	userTicket, err = ValidateCreateUserTicketConditions(userTicket, &eventTicket[0], user_request.Count)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.New(err.Error())
 	}
 
+	// admin commission
+	is_paid, commission_amount, err := admin_utils.PayAdminCommission("event_tickets", eventTicket[0].Price, eventTicket[0].Reference, user_request.Count)
+	if !is_paid {
+		return nil, errors.New(err.Error())
+	}
+
+	amount_str := eventTicket[0].Price
+	amount_float, err := utils.ConvertStringToFloat(amount_str)
+	if err != nil {
+		return nil, errors.New(err.Error())
+	}
+
+	commission_amount_float, err := utils.ConvertStringToFloat(commission_amount)
+	if err != nil {
+		return nil, errors.New(err.Error())
+	}
+
+	organiser_amount := (amount_float * float64(user_request.Count)) - commission_amount_float
+	organiser_amount_str := fmt.Sprintf("%.2f", organiser_amount)
+
+
 	// credit event organiser wallet
-	entry_description := "ticket purchase commission"
+	entry_description := fmt.Sprintf("ticket purchase commission - %s", eventTicket[0].Reference)
 	db.Find(&events, "id = ?", eventTicket[0].EventId)
 	if events[0].IsBusiness {
 		err = db.First(&businesses, "id = ?", events[0].OrganiserId).Error
 		if err != nil {
 			return nil, errors.New("oops! nable to find event organiser")
 		}
-		is_credited, credited_wallet := wallets_utils.CreditUserWallet(businesses[0].UserId, eventTicket[0].Price, entry_description)
+		is_credited, credited_wallet := wallets_utils.CreditUserWallet(businesses[0].UserId, organiser_amount_str, entry_description)
 		if !is_credited {
 			return nil, errors.New(credited_wallet)
 		}
@@ -272,7 +361,7 @@ func CreateUserTicket(c *fiber.Ctx) (*event_serializers.ReadCreateUserTicketSeri
 		if err != nil {
 			return nil, errors.New("oops! nable to find event organiser")
 		}
-		is_credited, credited_wallet := wallets_utils.CreditUserWallet(users[0].Id, eventTicket[0].Price, entry_description)
+		is_credited, credited_wallet := wallets_utils.CreditUserWallet(users[0].Id, organiser_amount_str, entry_description)
 		if !is_credited {
 			return nil, errors.New(credited_wallet)
 		}
@@ -320,7 +409,7 @@ func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTick
 		amount := float64(ticket_count) * amount_float
 
 		// debit user wallet
-		entry_description := "ticket purchase"
+		entry_description := fmt.Sprintf("ticket purchase - %s", eventTicket.Reference)
 		is_debited, debited_wallet := wallets_utils.DebitUserWallet(userTicket.UserId, amount, entry_description)
 		if !is_debited {
 			return nil, errors.New(debited_wallet)
@@ -386,10 +475,26 @@ func ValidateCreateUserTicketConditions(userTicket *models.UserTicket, eventTick
 			return nil, errors.New(updated_event_ticket)
 		}
 
-		err = db.Create(&userTicket).Error
-
+		// generate ticket barcode
+		barcode_url, barcode_image, err := GenerateUserTicketBarcode(userTicket.Reference)
 		if err != nil {
 			return nil, errors.New(err.Error())
+		}
+		barcode_img := base64.StdEncoding.EncodeToString(barcode_image)
+		barcode := make(map[string]interface{})
+		barcode["url"] = barcode_url
+		barcode["code"] = barcode_img
+		userTicket.Barcode = barcode
+
+		err = db.Create(&userTicket).Error
+		if err != nil {
+			return nil, errors.New(err.Error())
+		}
+
+		// increase userticket count
+		is_updated_user_ticket, updated_user_ticket := db_utils.UpdateUserTicket(userTicket)
+		if !is_updated_user_ticket {
+			return nil, errors.New(updated_user_ticket)
 		}
 
 		return userTicket, nil
@@ -469,6 +574,18 @@ func TransferUserTicket(c *fiber.Ctx) (bool, string) {
 		userTicket.UserId = receiver_id_uuid
 		userTicket.Reference = reference
 		userTicket.Count += transfer_request.Count
+		
+		// generate ticket barcode
+		barcode_url, barcode_image, err := GenerateUserTicketBarcode(userTicket.Reference)
+		if err != nil {
+			return false, err.Error()
+		}
+		barcode_img := base64.StdEncoding.EncodeToString(barcode_image)
+		barcode := make(map[string]interface{})
+		barcode["url"] = barcode_url
+		barcode["code"] = barcode_img
+		userTicket.Barcode = barcode
+		
 		err = db.Create(&userTicket).Error
 		if err != nil {
 			return false, err.Error()
@@ -483,5 +600,107 @@ func TransferUserTicket(c *fiber.Ctx) (bool, string) {
 	}
 
 	return true, "Transfer successful"
+
+}
+
+func GenerateUserTicketBarcode(reference string) (string, []byte, error) {
+
+	url := fmt.Sprintf("https://ec08-197-211-59-80.ngrok-free.app/api/v1/tickets/users/%s", reference)
+
+	// Create a new QR code object
+	qr, err := qrcode.New(url, qrcode.Medium)
+	if err != nil {
+		return "", nil, errors.New(err.Error())
+	}
+
+	// Convert image to bytes
+	imgBuf := new(bytes.Buffer)
+	err = png.Encode(imgBuf, qr.Image(256))
+	if err != nil {
+		return "", nil, errors.New(err.Error())
+	}
+
+	imageData := imgBuf.Bytes()
+
+	return url, imageData, nil
+
+}
+
+func ValidateUserTicket(c *fiber.Ctx) (bool, string) {
+	db := initialisers.ConnectDb().Db
+	ticket_reference := c.Params("reference")
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	user_request := new(ticket_serializers.ValidateUserTicket)
+	userTicket := models.UserTicket{}
+	privilege := authenticated_user["privilege"].(string)
+	business := models.Business{}
+	user := models.Xuser{}
+
+	// validate request body
+	err := c.BodyParser(user_request)
+	if err != nil {
+		return false, "Invalid request body"
+	}
+
+	// get the ticket
+	result := db.Model(&models.UserTicket{}).
+		Preload("EventTicket.Event").
+		Joins("User").
+		Where("user_tickets.reference = ?", ticket_reference).
+		Order("created_at desc").
+		First(&userTicket)
+
+	if result.Error != nil {
+		return false, "Unable to get user ticket"
+	}
+
+	// validate event organiser
+	organiser_id_uuid, err := utils.ConvertStringToUUID(userTicket.EventTicket.Event.OrganiserId)
+	if err != nil {
+		return false, "Oops! unable to validate request user"
+	}
+
+	if userTicket.EventTicket.Event.IsBusiness {
+		db.Model(&models.Business{}).First(&business, "business.user_id = ?", authenticated_user["id"])
+		organiser_id := business.Id
+		if organiser_id != organiser_id_uuid && strings.ToUpper(privilege) != "ADMIN"  {
+			return false, "Oops! you do not have permission to perform this action"
+		}
+	} else {
+		db.Model(&models.Xuser{}).First(&user, "id = ?", authenticated_user["id"])
+		organiser_id := user.Id
+		if organiser_id != organiser_id_uuid && strings.ToUpper(privilege) != "ADMIN"  {
+			return false, "Oops! you do not have permission to perform this action"
+		}
+	}
+
+	// check if the ticket is already valid
+	if userTicket.IsValidated {
+		return false, "Oops! this ticket has already been validated"
+	}
+
+	// get the ticket count and valid_count, increase ticket valid_count
+	ticket_count := userTicket.Count
+	ticket_valid_count := userTicket.ValidCount
+	ticket_valid_count += user_request.Count
+	if ticket_valid_count > ticket_count {
+		return false, "Oops! invalid number of tickets to validate"
+	}
+
+	// if ticket count == valid_count: is_validated == true, increase valid count, save, return
+	if ticket_valid_count == ticket_count {
+		userTicket.IsValidated = true
+		userTicket.ValidCount = ticket_valid_count
+	} else {  // if ticket count != valid_count: is_validated == false, increase valid count, save, return
+		userTicket.ValidCount = ticket_valid_count
+	}
+
+	is_updated_user_ticket, updated_user_ticket := db_utils.UpdateUserTicket(&userTicket)
+	if !is_updated_user_ticket {
+		return false, updated_user_ticket
+	}
+
+	return true, "Successfully validated user ticket"
+
 
 }

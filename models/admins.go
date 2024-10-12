@@ -1,6 +1,5 @@
 package models
 
-
 import (
 	"errors"
 	"time"
@@ -51,10 +50,25 @@ type AdminUserAuthToken struct {
 	UserId     uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
 	Token      string    `gorm:"type:varchar(50);not null;" json:"token"`
 	ExpiryDate time.Time `gorm:"type:timestamp with time zone" json:"expiry_date"`
-	User       AdminUser     `gorm:"foreignKey:UserId;constraint:OnDelete:CASCADE"`
+	User       AdminUser `gorm:"foreignKey:UserId;constraint:OnDelete:CASCADE"`
 }
 
 func (authToken *AdminUserAuthToken) BeforeCreate(*gorm.DB) (err error) {
 	authToken.Id = uuid.New()
+	return
+}
+
+type AdminCommissionConfig struct {
+	Id         uuid.UUID `gorm:"type:uuid;primaryKey;not null" json:"id"`
+	Type       string    `gorm:"type:varchar(50);unique" json:"type"`
+	Commission string    `gorm:"type:numeric(10,2);not null;default:0.00" json:"commission"`
+	Cap        string    `gorm:"type:numeric(10,2);not null;default:0.00" json:"cap"`
+	CreatedAt  time.Time `gorm:"type:timestamp with time zone;default:now()" json:"created_at"`
+	UpdatedAt  time.Time `gorm:"type:timestamp with time zone" json:"updated_at"`
+}
+
+func (tx *AdminCommissionConfig) BeforeCreate(*gorm.DB) (err error) {
+
+	tx.Id = uuid.New()
 	return
 }

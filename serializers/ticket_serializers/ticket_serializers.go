@@ -26,3 +26,7 @@ type EventTicketCustomuserSerializer struct {
 	Description  string                 `json:"description" validate:"required"`
 	Perks        map[string]interface{} `json:"perks" validate:"required"`
 }
+
+type ValidateUserTicket struct {
+	Count         int    `json:"count"`
+}

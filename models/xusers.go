@@ -17,6 +17,7 @@ type Xuser struct {
 	LastName    string    `gorm:"type:varchar(50)" json:"last_name"`
 	UserName    string    `gorm:"type:varchar(50);not null;unique" json:"username" `
 	PhoneNumber string    `gorm:"type:varchar(15)" json:"phone_number"`
+	Image       string    `gorm:"type:varchar(100)" json:"image"`
 	IsActive    bool      `gorm:"type:boolean;default:true" json:"is_active"`
 	IsVerified  bool      `gorm:"type:boolean;default:false" json:"is_verified"`
 	IsBusiness  bool      `gorm:"type:boolean;default:false" json:"is_business"`

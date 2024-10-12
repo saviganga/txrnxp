@@ -2,6 +2,7 @@ package xusers_utils
 
 import (
 	"errors"
+	"strings"
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/serializers/user_serializers"
@@ -16,7 +17,6 @@ func CreateUser(c *fiber.Ctx) (*user_serializers.UserSerializer, error) {
 
 	db := initialisers.ConnectDb().Db
 	user := new(models.Xuser)
-	serialized_user := new(user_serializers.UserSerializer)
 	err := c.BodyParser(user)
 	if err != nil {
 		return nil, errors.New("invalid request body")
@@ -32,47 +32,114 @@ func CreateUser(c *fiber.Ctx) (*user_serializers.UserSerializer, error) {
 		return nil, errors.New("unable to create user wallet")
 	}
 
-	serialized_user.Id = user.Id
-	serialized_user.Email = user.Email
-	serialized_user.UserName = user.UserName
-	serialized_user.FirstName = user.FirstName
-	serialized_user.LastName = user.LastName
-	serialized_user.PhoneNumber = user.PhoneNumber
-	serialized_user.IsActive = user.IsActive
-	serialized_user.IsBusiness = user.IsBusiness
-	serialized_user.LastLogin= user.LastLogin
-	serialized_user.CreatedAt = user.CreatedAt
-	serialized_user.UpdatedAt = user.UpdatedAt
+	serialized_user := user_serializers.SerializeUserSerializer(*user)
 
-	return serialized_user, nil
+	return &serialized_user, nil
 }
 
 func GetUsers(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
-	users := []models.Xuser{}
-	serialized_user := new(user_serializers.UserSerializer)
-	serialized_users := []user_serializers.UserSerializer{}
+	userRepo := utils.NewGenericDB[models.Xuser](db)
 	privilege := authenticated_user["privilege"]
 	if privilege == "ADMIN" {
-		db.Order("created_at desc").Find(&users)
+		users, err := userRepo.GetPagedAndFiltered(c.Locals("size").(int), c.Locals("page").(int), c.Locals("filters").(map[string]interface{}), nil, nil)
+		if err != nil {
+			return utils.BadRequestResponse(c, "Unable to get users")
+		}
+		serialized_users := user_serializers.SerializeUsers(users.Data)
+		users.SerializedData = serialized_users
+		users.Status = "Success"
+		users.Message = "Successfully fetched users"
+		users.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, users, "success")
 	} else {
+		users := []models.Xuser{}
 		db.Order("created_at desc").First(&users, "id = ?", authenticated_user["id"])
-	}
-	for _, user := range users {
-		serialized_user.Id = user.Id
-		serialized_user.Email = user.Email
-		serialized_user.UserName = user.UserName
-		serialized_user.FirstName = user.FirstName
-		serialized_user.LastName = user.LastName
-		serialized_user.PhoneNumber = user.PhoneNumber
-		serialized_user.IsActive = user.IsActive
-		serialized_user.IsBusiness = user.IsBusiness
-		serialized_user.LastLogin= user.LastLogin
-		serialized_user.CreatedAt = user.CreatedAt
-		serialized_user.UpdatedAt = user.UpdatedAt
+		if users[0].Image != "" {
+			imageUrl, err := userRepo.GetSignedUrl(c, "xuser", users[0].Id.String())
+			if err != nil {
+				return utils.BadRequestResponse(c, err.Error())
+			}
+			serialized_users := user_serializers.SerializeUsers(users)
+			serialized_users[0].Image = imageUrl
+			return utils.SuccessResponse(c, serialized_users[0], "Successfully fetched users")
 
-		serialized_users = append(serialized_users, *serialized_user)
+		}
+		serialized_users := user_serializers.SerializeUsers(users)
+		return utils.SuccessResponse(c, serialized_users[0], "Successfully fetched users")
 	}
-	return utils.SuccessResponse(c, serialized_users, "Successfully fetched users")
+
+}
+
+
+func GetUser(c *fiber.Ctx) error {
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	user := models.Xuser{}
+	privilege := authenticated_user["privilege"]
+	if privilege == "ADMIN" || authenticated_user["id"] == c.Params("id") {
+		err := db.First(&user, "id = ?", c.Params("id")).Error
+		if err != nil {
+			return utils.BadRequestResponse(c, "Unable to get user")
+		}
+		serialized_user := user_serializers.SerializeUserSerializer(user)
+		return utils.SuccessResponse(c, serialized_user, "success")
+	} else {
+		return utils.BadRequestResponse(c, "You do not have permission to view this resource")
+	}
+
+}
+
+
+func UpdateUser(c *fiber.Ctx) error {
+
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	userRepo := utils.NewGenericDB[models.Xuser](db)
+	privilege := authenticated_user["privilege"].(string)
+	user_id := c.Params("id")
+
+	if strings.ToUpper(privilege) == "ADMIN" {
+		return utils.BadRequestResponse(c, "this feature is not available for admins")
+	}
+
+	user, err := userRepo.UpdateEntity(c, "xuser", user_id)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	serialized_user := user_serializers.SerializeUserSerializer(user.Data)
+	user.SerializedData = serialized_user
+	return utils.SuccessResponse(c, serialized_user, "Successfully uploaded user profile")
+
+
+}
+
+
+func UploadUserImage(c *fiber.Ctx) error {
+
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	userRepo := utils.NewGenericDB[models.Xuser](db)
+	privilege := authenticated_user["privilege"].(string)
+	user_id := c.Params("id")
+
+	if strings.ToUpper(privilege) == "ADMIN" {
+		return utils.BadRequestResponse(c, "this feature is not available for admins")
+	}
+
+	user, err := userRepo.UploadImage(c, "xuser", user_id)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	serialized_user := user_serializers.SerializeUserSerializer(user.Data)
+	user.SerializedData = serialized_user
+	user.Status = "Success"
+	user.Message = "Successfully uploaded user image"
+	user.Type = "OK"
+	return utils.SuccessResponse(c, serialized_user, "Successfully uploaded user image")
+
+
 }

@@ -2,12 +2,11 @@ package event_utils
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/serializers/event_serializers"
-	"txrnxp/serializers/ticket_serializers"
+	"txrnxp/utilities"
 	"txrnxp/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -19,7 +18,6 @@ func CreateEvent(c *fiber.Ctx) (*event_serializers.ReadCreateEventSerializer, er
 	db := initialisers.ConnectDb().Db
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	event := new(models.Event)
-	event_serializer := new(event_serializers.ReadCreateEventSerializer)
 	privilege := authenticated_user["privilege"]
 
 	if privilege == "ADMIN" {
@@ -58,37 +56,21 @@ func CreateEvent(c *fiber.Ctx) (*event_serializers.ReadCreateEventSerializer, er
 		return nil, errors.New(err.Error())
 	}
 
-	// fill in the serializer
-	event_serializer.EventId = event.Id
-	event_serializer.Reference = event.Reference
-	event_serializer.Name = event.Name
-	event_serializer.IsBusiness = event.IsBusiness
-	event_serializer.EventType = event.EventType
-	event_serializer.Description = event.Description
-	event_serializer.Address = event.Address
-	event_serializer.Category = event.Category
-	event_serializer.Duration = event.Duration
-	event_serializer.StartTime = event.StartTime
-	event_serializer.EndTime = event.EndTime
-	event_serializer.CreatedAt = event.CreatedAt
-	event_serializer.UpdatedAt = event.UpdatedAt
+	serialized_event, err := event_serializers.SerializeCreateEvent(*event, c)
+	if err != nil {
+		return nil, errors.New(err.Error())
+	}
 
-	return event_serializer, nil
+	return serialized_event, nil
 }
 
 func GetEventByReference(c *fiber.Ctx) (*event_serializers.EventDetailSerializer, error) {
 
 	db := initialisers.ConnectDb().Db
-	// authenticated_user := c.Locals("user").(jwt.MapClaims)
 	reference := c.Params("reference")
 	event_list := []models.Event{}
-	event := new(event_serializers.EventDetailSerializer)
+	// event := new(event_serializers.EventDetailSerializer)
 	event_tickets := []models.EventTicket{}
-	organiser_user := []models.Xuser{}
-	organiser_business := []models.Business{}
-	organiser_details := make(map[string]interface{})
-	eventTicket := new(ticket_serializers.EventTicketCustomuserSerializer)
-	eventTickets := []ticket_serializers.EventTicketCustomuserSerializer{}
 
 	// get the event model
 	err := db.Model(&models.Event{}).First(&event_list, "reference = ?", reference).Error
@@ -96,26 +78,9 @@ func GetEventByReference(c *fiber.Ctx) (*event_serializers.EventDetailSerializer
 		return nil, errors.New(err.Error())
 	}
 
-	// get the event organiser details
-	organiser_id := event_list[0].OrganiserId
-	is_business := event_list[0].IsBusiness
-
-	if is_business {
-		err := db.Model(&models.Business{}).First(&organiser_business, "id = ?", organiser_id).Error
-		if err != nil {
-			return nil, fmt.Errorf("oops! unable to fetch events - organiser: %s", event.Reference)
-		}
-		organiser_details["name"] = organiser_business[0].Name
-		organiser_details["is_business"] = true
-		organiser_details["id"] = organiser_id
-	} else {
-		err := db.Model(&models.Xuser{}).First(&organiser_user, "id = ?", organiser_id).Error
-		if err != nil {
-			return nil, fmt.Errorf("oops! unable to fetch events - organiser: %s", event.Reference)
-		}
-		organiser_details["name"] = organiser_user[0].UserName
-		organiser_details["is_business"] = false
-		organiser_details["id"] = organiser_id
+	organiser_details, err := utilities.GetEventOrganiser(event_list[0].OrganiserId, event_list[0].Reference, event_list[0].IsBusiness)
+	if err != nil {
+		return nil, errors.New(err.Error())
 	}
 
 	// get the event ticket details
@@ -124,37 +89,90 @@ func GetEventByReference(c *fiber.Ctx) (*event_serializers.EventDetailSerializer
 		return nil, errors.New(err.Error())
 	}
 
-	for _, eventticket := range event_tickets {
-
-		eventTicket.Id = eventticket.Id
-		eventTicket.IsPaid = eventticket.IsPaid
-		eventTicket.IsInviteOnly = eventticket.IsInviteOnly
-		eventTicket.Reference = eventticket.Reference
-		eventTicket.TicketType = eventticket.TicketType
-		eventTicket.Description = eventticket.Description
-		eventTicket.Perks = eventticket.Perks
-		eventTicket.Price = eventticket.Price
-
-		eventTickets = append(eventTickets, *eventTicket)
-
+	serialized_event, err := event_serializers.SerializeGetEventByReference(c, event_list, event_tickets, organiser_details)
+	if err != nil {
+		return nil, errors.New(err.Error())
 	}
 
-	// fill in the serializer
-	event.EventId = event_list[0].Id
-	event.Reference = reference
-	event.Tickets = eventTickets
-	event.Organiser = organiser_details
-	event.Name = event_list[0].Name
-	event.EventType = event_list[0].EventType
-	event.Description = event_list[0].Description
-	event.Address = event_list[0].Address
-	event.Category = event_list[0].Category
-	event.Duration = event_list[0].Duration
-	event.StartTime = event_list[0].StartTime
-	event.EndTime = event_list[0].EndTime
-	event.CreatedAt = event_list[0].CreatedAt
-	event.UpdatedAt = event_list[0].UpdatedAt
+	return serialized_event, nil
 
-	return event, nil
+}
+
+func GetEventById(c *fiber.Ctx) error {
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	event := models.Event{}
+	privilege := authenticated_user["privilege"]
+	err := db.First(&event, "id = ?", c.Params("id")).Error
+	if err != nil {
+		return utils.BadRequestResponse(c, "Unable to get event")
+	}
+	if privilege != "ADMIN" && authenticated_user["id"].(string) != event.OrganiserId {
+		return utils.BadRequestResponse(c, "You do not have permission to view this resource")
+	}
+
+	serialized_event, err := event_serializers.SerializeCreateEvent(event, c)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	return utils.SuccessResponse(c, serialized_event, "success")
+
+}
+
+
+func UpdateEvent(c *fiber.Ctx) error {
+
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	eventRepo := utils.NewGenericDB[models.Event](db)
+	privilege := authenticated_user["privilege"].(string)
+	event_id := c.Params("id")
+
+	if strings.ToUpper(privilege) == "ADMIN" {
+		return utils.BadRequestResponse(c, "this feature is not available for admins")
+	}
+
+	event, err := eventRepo.UpdateEntity(c, "event", event_id)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	serialized_event, err := event_serializers.SerializeCreateEvent(event.Data, c)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	return utils.SuccessResponse(c, serialized_event, "success")
+
+
+}
+
+func UploadEventImage(c *fiber.Ctx) error {
+
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	eventRepo := utils.NewGenericDB[models.Event](db)
+	privilege := authenticated_user["privilege"].(string)
+	event_id := c.Params("id")
+
+	if strings.ToUpper(privilege) == "ADMIN" {
+		return utils.BadRequestResponse(c, "this feature is not available for admins")
+	}
+
+	event, err := eventRepo.UploadImage(c, "event", event_id)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	serialized_event, err := event_serializers.SerializeCreateEvent(event.Data, c)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+	event.SerializedData = serialized_event
+	event.Status = "Success"
+	event.Message = "Successfully uploaded event image"
+	event.Type = "OK"
+	return utils.SuccessResponse(c, serialized_event, "Successfully uploaded event image")
 
 }

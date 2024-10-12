@@ -93,8 +93,10 @@ type UserTicket struct {
 	EventTicketId uuid.UUID   `gorm:"type:uuid;not null" json:"event_ticket_id"`
 	UserId        uuid.UUID   `gorm:"type:uuid;not null" json:"user_id"`
 	Reference     string      `gorm:"type:varchar(50);unique" json:"reference"`
+	Barcode       JSONBField  `gorm:"type:jsonb;default: '{}'" json:"barcode"`
 	Count         int         `gorm:"type:int;default:0" json:"count"`
 	IsValidated   bool        `gorm:"type:boolean;default:false" json:"is_validated"`
+	ValidCount    int         `gorm:"type:int;default:0" json:"valid_count"`
 	CreatedAt     time.Time   `gorm:"type:timestamp with time zone;default:now()" json:"created_at"`
 	UpdatedAt     time.Time   `gorm:"type:timestamp with time zone" json:"updated_at"`
 	Event         Event       `gorm:"foreignKey:EventId;constraint:OnDelete:CASCADE"`

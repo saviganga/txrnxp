@@ -7,7 +7,6 @@ import (
 	"strings"
 	"txrnxp/initialisers"
 	"txrnxp/models"
-	"txrnxp/serializers/user_serializers"
 	"txrnxp/serializers/wallet_serializers"
 	"txrnxp/utils"
 	"txrnxp/utils/db_utils"
@@ -28,46 +27,68 @@ func CreateUserWallet(user *models.Xuser) error {
 	return nil
 }
 
+func CreateAdminWallet() error {
+	// create admin wallet
+	db := initialisers.ConnectDb().Db
+	adminwallet_query := models.AdminWallet{}
+	dbError := db.Create(&adminwallet_query).Error
+	if dbError != nil {
+		return errors.New("oops! error creating admin wallet")
+	}
+	return nil
+}
+
 func GetUserWallets(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
-	userwallets := []models.UserWallet{}
-	serialized_wallet := new(wallet_serializers.WalletSerializer)
-	serialized_wallets := []wallet_serializers.WalletSerializer{}
-	serialized_user := new(user_serializers.UserSerializer)
+	privilege := authenticated_user["privilege"]
+	message := ""
+
+	// define filters based on query parameters
+	filters := c.Locals("filters").(map[string]interface{})
+	limit := c.Locals("size").(int)
+	page := c.Locals("page").(int)
+
+	walletRepo := utils.NewGenericDB[models.UserWallet](db)
+
+	if privilege == "ADMIN" {
+		// admin can see all wallets with filters and pagination
+        joins := []string{"LEFT JOIN xusers AS u ON user_wallets.user_id = u.id"}
+        preloads := []string{"User"}
+        wallets, err := walletRepo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get wallets")
+        }
+
+        serialized_wallets := wallet_serializers.SerializeGetWallets(wallets.Data)
+        wallets.SerializedData = serialized_wallets
+        wallets.Status = "Success"
+        wallets.Message = "Successfully fetched wallets"
+        wallets.Type = "OK"
+        return utils.PaginatedSuccessResponse(c, wallets, "success")
+	} else {
+		userwallets := []models.UserWallet{}
+		// for regular users, only return their own wallets
+		db.Model(&models.UserWallet{}).Joins("User").Order("created_at desc").First(&userwallets, "user_wallets.user_id = ?", authenticated_user["id"])
+		message = "Successfully fetched wallet"
+		serialized_wallets := wallet_serializers.SerializeGetWallets(userwallets)
+		return utils.SuccessResponse(c, serialized_wallets, message)
+	}
+}
+
+func GetAdminWallet(c *fiber.Ctx) error {
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	adminwallet := models.AdminWallet{}
 	privilege := authenticated_user["privilege"]
 	message := ""
 	if privilege == "ADMIN" {
-		db.Model(&models.UserWallet{}).Joins("User").Order("created_at desc").Find(&userwallets)
-		message = "Succesfully fetched wallets"
-	} else {
-		db.Model(&models.UserWallet{}).Joins("User").Order("created_at desc").First(&userwallets, "user_wallets.user_id = ?", authenticated_user["id"])
+		db.Model(&models.AdminWallet{}).Order("created_at desc").First(&adminwallet)
 		message = "Succesfully fetched wallet"
+	} else {
+		return utils.BadRequestResponse(c, "Oops! You do not have permission to perform this action")
 	}
-	for _, wallet := range userwallets {
-
-		serialized_user.Id = wallet.User.Id
-		serialized_user.Email = wallet.User.Email
-		serialized_user.UserName = wallet.User.UserName
-		serialized_user.FirstName = wallet.User.FirstName
-		serialized_user.LastName = wallet.User.LastName
-		serialized_user.PhoneNumber = wallet.User.PhoneNumber
-		serialized_user.IsActive = wallet.User.IsActive
-		serialized_user.IsBusiness = wallet.User.IsBusiness
-		serialized_user.LastLogin = wallet.User.LastLogin
-		serialized_user.CreatedAt = wallet.User.CreatedAt
-		serialized_user.UpdatedAt = wallet.User.UpdatedAt
-
-		serialized_wallet.Id = wallet.Id
-		serialized_wallet.User = *serialized_user
-		serialized_wallet.AvailableBalance = wallet.AvailableBalance
-		serialized_wallet.LedgerBalance = wallet.LedgerBalance
-		serialized_wallet.CreatedAt = wallet.CreatedAt
-		serialized_wallet.UpdatedAt = wallet.UpdatedAt
-
-		serialized_wallets = append(serialized_wallets, *serialized_wallet)
-
-	}
+	serialized_wallets := wallet_serializers.SerializeGetAdminWallet(&adminwallet)
 	return utils.SuccessResponse(c, serialized_wallets, message)
 
 }
@@ -75,41 +96,66 @@ func GetUserWallets(c *fiber.Ctx) error {
 func GetUserWalletTransactions(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
-	wallet_tx := []models.TransactionEntries{}
-	serialized_wallet_tx := new(wallet_serializers.ReadWalletEntrySerializer)
-	serialized_wallet_txs := []wallet_serializers.ReadWalletEntrySerializer{}
-	serialized_user := new(user_serializers.UserSerializer)
+	txRepo := utils.NewGenericDB[models.TransactionEntries](db)
 	privilege := authenticated_user["privilege"]
+
 	if privilege == "ADMIN" {
-		db.Model(&models.TransactionEntries{}).Joins("User").Order("created_at desc").Find(&wallet_tx).Order("created_at DESC")
+		filters := c.Locals("filters").(map[string]interface{})
+		limit := c.Locals("size").(int)
+		page := c.Locals("page").(int)
+		joins := []string{"LEFT JOIN xusers AS u ON transaction_entries.user_id = u.id"}
+        preloads := []string{"User"}
+		wallet_tx, err := txRepo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get wallets")
+        }
+		serialized_wallet_txs := wallet_serializers.SerializeGetWalletEntries(wallet_tx.Data)
+		wallet_tx.SerializedData = serialized_wallet_txs
+        wallet_tx.Status = "Success"
+        wallet_tx.Message = "Successfully fetched wallet transactions"
+        wallet_tx.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, wallet_tx, "success")
 	} else {
-		db.Where("user_id = ?", authenticated_user["id"]).Joins("User").Order("created_at DESC").Order("created_at desc").Find(&wallet_tx)
+		filters := make(map[string]interface{})
+		filters["u__id"] = authenticated_user["id"]
+		limit := c.Locals("size").(int)
+		page := c.Locals("page").(int)
+		joins := []string{"LEFT JOIN xusers AS u ON transaction_entries.user_id = u.id"}
+        preloads := []string{"User"}
+		wallet_tx, err := txRepo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get wallets")
+        }
+		serialized_wallet_txs := wallet_serializers.SerializeGetWalletEntries(wallet_tx.Data)
+		return utils.SuccessResponse(c, serialized_wallet_txs, "Successfully fetched wallet transactions")
 	}
-	for _, tx := range wallet_tx {
+	
 
-		serialized_user.Id = tx.User.Id
-		serialized_user.Email = tx.User.Email
-		serialized_user.UserName = tx.User.UserName
-		serialized_user.FirstName = tx.User.FirstName
-		serialized_user.LastName = tx.User.LastName
-		serialized_user.PhoneNumber = tx.User.PhoneNumber
-		serialized_user.IsActive = tx.User.IsActive
-		serialized_user.IsBusiness = tx.User.IsBusiness
-		serialized_user.LastLogin = tx.User.LastLogin
-		serialized_user.CreatedAt = tx.User.CreatedAt
-		serialized_user.UpdatedAt = tx.User.UpdatedAt
+}
 
-		serialized_wallet_tx.Id = tx.Id
-		serialized_wallet_tx.User = *serialized_user
-		serialized_wallet_tx.Reference = tx.Reference
-		serialized_wallet_tx.EntryType = tx.EntryType
-		serialized_wallet_tx.Description = tx.Description
-		serialized_wallet_tx.CreatedAt = tx.CreatedAt
-		serialized_wallet_tx.UpdatedAt = tx.UpdatedAt
+func GetAdminWalletTransactions(c *fiber.Ctx) error {
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	txRepo := utils.NewGenericDB[models.AdminTransactionEntries](db)
+	privilege := authenticated_user["privilege"]
+	filters := c.Locals("filters").(map[string]interface{})
+	limit := c.Locals("size").(int)
+	page := c.Locals("page").(int)
 
-		serialized_wallet_txs = append(serialized_wallet_txs, *serialized_wallet_tx)
+	if privilege == "ADMIN" {
+		wallet_tx, err := txRepo.GetPagedAndFiltered(limit, page, filters, nil, nil)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get wallets")
+        }
+		serialized_wallet_txs := wallet_serializers.SerializeGetAdminWalletEntries(wallet_tx.Data)
+		wallet_tx.SerializedData = serialized_wallet_txs
+		wallet_tx.Status = "Success"
+		wallet_tx.Message = "Successfully fetched wallet transactions"
+		wallet_tx.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, wallet_tx, "success")
+	} else {
+		return utils.BadRequestResponse(c, "Oops! You do not have permission to perform this action")
 	}
-	return utils.SuccessResponse(c, serialized_wallet_txs, "Successfully fetched wallet transactions")
 
 }
 
@@ -133,8 +179,21 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 		return false, err.Error()
 	}
 
+	amount_float, err := utils.ConvertStringToFloat(entry_request.Amount)
+	if err != nil || amount_float == 0.0 {
+		return false, err.Error()
+	}
+
 	if strings.ToUpper(entry_request.EntryType) == "CREDIT" {
 
+		// debit admin wallet
+		admin_entry_description := "Manual entry - debit"
+		is_debited, debited_wallet := DebitAdminWallet(amount_float, admin_entry_description)
+		if !is_debited {
+			return false, debited_wallet
+		}
+
+		// credit user wallet
 		entry_description := "Manual entry - credit"
 		is_credited, credited_wallet := CreditUserWallet(user_id_uuid, entry_request.Amount, entry_description)
 		if !is_credited {
@@ -145,15 +204,18 @@ func AdminWalletManualEntry(c *fiber.Ctx) (bool, string) {
 
 	} else {
 
-		amount_float, err := utils.ConvertStringToFloat(entry_request.Amount)
-		if err != nil || amount_float == 0.0 {
-			return false, err.Error()
-		}
-
+		// debit user wallet
 		entry_description := "Manual entry - debit"
 		is_debited, debited_wallet := DebitUserWallet(user_id_uuid, amount_float, entry_description)
 		if !is_debited {
 			return false, debited_wallet
+		}
+
+		// credit admin wallet
+		admin_entry_description := "Manual entry - credit"
+		is_credited, credited_wallet := CreditAdminWallet(entry_request.Amount, admin_entry_description)
+		if !is_credited {
+			return false, credited_wallet
 		}
 
 		return true, debited_wallet
@@ -205,6 +267,50 @@ func DebitUserWallet(user_id uuid.UUID, amount float64, description string) (boo
 
 }
 
+func DebitAdminWallet(amount float64, description string) (bool, string) {
+
+	db := initialisers.ConnectDb().Db
+	adminWallet := models.AdminWallet{}
+
+	// get admin wallet
+	err := db.Model(&models.AdminWallet{}).First(&adminWallet).Error
+	if err != nil {
+		return false, "Oops! Unable to find admin wallet"
+	}
+
+	// convert wallet balance to float
+	adminWallet_available_balance, err := strconv.ParseFloat(adminWallet.AvailableBalance, 64)
+	if err != nil {
+		return false, "error converting wallet available balance"
+	}
+	adminWallet_ledger_balance, err := strconv.ParseFloat(adminWallet.LedgerBalance, 64)
+	if err != nil {
+		return false, "error converting wallet ledger balance"
+	}
+
+	if adminWallet_available_balance < amount {
+		return false, "oops! insufficient wallet funds"
+	}
+
+	// debit user wallet
+	adminWallet.AvailableBalance = strconv.FormatFloat(adminWallet_available_balance-amount, 'f', -1, 64)
+	adminWallet.LedgerBalance = strconv.FormatFloat(adminWallet_ledger_balance-amount, 'f', -1, 64)
+	is_debited, debited_wallet := db_utils.UpdateAdminWallet(&adminWallet)
+	if !is_debited {
+		return false, debited_wallet
+	}
+
+	amount_str := fmt.Sprintf("%.2f", amount)
+	// update wallet transaction
+	wallet_tx := models.AdminTransactionEntries{Amount: amount_str, Description: description, EntryType: "DEBIT"}
+	dbError := db.Create(&wallet_tx).Error
+	if dbError != nil {
+		return false, dbError.Error()
+	}
+	return true, debited_wallet
+
+}
+
 func CreditUserWallet(user_id uuid.UUID, amount string, description string) (bool, string) {
 
 	db := initialisers.ConnectDb().Db
@@ -241,6 +347,51 @@ func CreditUserWallet(user_id uuid.UUID, amount string, description string) (boo
 	}
 	// update wallet transaction
 	wallet_tx := models.TransactionEntries{UserId: user_id, Amount: amount, Description: description, EntryType: "CREDIT"}
+	dbError := db.Create(&wallet_tx).Error
+	if dbError != nil {
+		return false, dbError.Error()
+	}
+	return true, credited_wallet
+
+}
+
+func CreditAdminWallet(amount string, description string) (bool, string) {
+
+	db := initialisers.ConnectDb().Db
+	adminWallet := models.AdminWallet{}
+
+	// convert amount to float
+	amount_float, err := strconv.ParseFloat(amount, 64)
+	if err != nil {
+		return false, "error converting amount"
+	}
+
+	// get admin wallet
+	err = db.Model(&models.AdminWallet{}).First(&adminWallet).Error
+	if err != nil {
+		return false, "Oops! Unable to find admin wallet"
+	}
+
+	// convert wallet balance to float
+	adminWallet_available_balance, err := strconv.ParseFloat(adminWallet.AvailableBalance, 64)
+	if err != nil {
+		return false, "error converting wallet available balance"
+	}
+	adminWallet_ledger_balance, err := strconv.ParseFloat(adminWallet.LedgerBalance, 64)
+	if err != nil {
+		return false, "error converting wallet ledger balance"
+	}
+
+	// credit user wallet
+	adminWallet.AvailableBalance = strconv.FormatFloat(adminWallet_available_balance+amount_float, 'f', -1, 64)
+	adminWallet.LedgerBalance = strconv.FormatFloat(adminWallet_ledger_balance+amount_float, 'f', -1, 64)
+	is_credited, credited_wallet := db_utils.UpdateAdminWallet(&adminWallet)
+	if !is_credited {
+		return false, credited_wallet
+	}
+
+	// update wallet transaction
+	wallet_tx := models.AdminTransactionEntries{Amount: amount, Description: description, EntryType: "CREDIT"}
 	dbError := db.Create(&wallet_tx).Error
 	if dbError != nil {
 		return false, dbError.Error()

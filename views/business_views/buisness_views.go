@@ -4,7 +4,6 @@ import (
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/serializers/business_serializers"
-	"txrnxp/serializers/user_serializers"
 	"txrnxp/utils"
 	"txrnxp/utils/business_utils"
 
@@ -30,40 +29,63 @@ func CreateBusiness(c *fiber.Ctx) error {
 func GetBusiness(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
-	businesses := []models.Business{}
-	serialized_business := new(business_serializers.ReadBusinessSerializer)
-	serialized_businesses := []business_serializers.ReadBusinessSerializer{}
-	serialized_user := new(user_serializers.UserSerializer)
 	privilege := authenticated_user["privilege"]
+
+	businessRepo := utils.NewGenericDB[models.Business](db)
+
 	if privilege == "ADMIN" {
-		db.Model(&models.Business{}).Joins("User").Order("created_at desc").Find(&businesses)
+		// define filters based on query parameters
+		filters := c.Locals("filters").(map[string]interface{})
+		limit := c.Locals("size").(int)
+		page := c.Locals("page").(int)
+		joins := []string{"LEFT JOIN xusers AS u ON businesses.user_id = u.id"}
+        preloads := []string{"User"}
+		businesses, err := businessRepo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get businesses")
+        }
+		serialized_businesses, err := business_serializers.SerializeReadBusiness(businesses.Data, c)
+		if err != nil {
+			return utils.BadRequestResponse(c, err.Error())
+		}
+		businesses.SerializedData = serialized_businesses
+        businesses.Status = "Success"
+        businesses.Message = "Successfully fetched businesses"
+        businesses.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, businesses, "success")
 	} else {
-		db.Model(&models.Business{}).Joins("User").Order("created_at desc").First(&businesses, "businesses.user_id = ?", authenticated_user["id"])
+		joins := []string{"LEFT JOIN xusers AS u ON businesses.user_id = u.id"}
+        preloads := []string{"User"}
+		limit := c.Locals("size").(int)
+		page := c.Locals("page").(int)
+		filters := make(map[string]interface{})
+		filters["u__id"] = authenticated_user["id"]
+		businesses, err := businessRepo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get businesses")
+        }
+		serialized_businesses, err := business_serializers.SerializeReadBusiness(businesses.Data, c)
+		if err != nil {
+			return utils.BadRequestResponse(c, err.Error())
+		}
+		businesses.SerializedData = serialized_businesses
+        businesses.Status = "Success"
+        businesses.Message = "Successfully fetched businesses"
+        businesses.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, businesses, "success")
 	}
-	for _, business := range businesses {
 
-		serialized_user.Id = business.User.Id
-		serialized_user.Email = business.User.Email
-		serialized_user.UserName = business.User.UserName
-		serialized_user.FirstName = business.User.FirstName
-		serialized_user.LastName = business.User.LastName
-		serialized_user.PhoneNumber = business.User.PhoneNumber
-		serialized_user.IsActive = business.User.IsActive
-		serialized_user.IsBusiness = business.User.IsBusiness
-		serialized_user.LastLogin = business.User.LastLogin
-		serialized_user.CreatedAt = business.User.CreatedAt
-		serialized_user.UpdatedAt = business.User.UpdatedAt
+}
 
-		serialized_business.Id = business.Id
-		serialized_business.User = *serialized_user
-		serialized_business.Reference = business.Reference
-		serialized_business.Name = business.Name
-		serialized_business.Country = business.Country
-		serialized_business.CreatedAt = business.CreatedAt
-		serialized_business.UpdatedAt = business.UpdatedAt
+func GetBusinessById(c *fiber.Ctx) error {
+	return business_utils.GetBusinessById(c)
+}
 
-		serialized_businesses = append(serialized_businesses, *serialized_business)
-	}
-	return utils.SuccessResponse(c, serialized_businesses, "Successfully fetched businesses")
 
+func UpdateBusiness(c *fiber.Ctx) error {
+	return business_utils.UpdateBusiness(c)
+}
+
+func UploadBusinessImage(c *fiber.Ctx) error {
+	return business_utils.UploadBusinessImage(c)
 }

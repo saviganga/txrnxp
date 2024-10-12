@@ -21,6 +21,11 @@ func SuccessResponse(ctx *fiber.Ctx, data interface{}, message string) error {
 	return ctx.Status(fiber.StatusOK).JSON(resp)
 }
 
+func PaginatedSuccessResponse(ctx *fiber.Ctx, data interface{}, message string) error {
+	resp := data
+	return ctx.Status(fiber.StatusOK).JSON(resp)
+}
+
 func CreatedResponse(ctx *fiber.Ctx, data interface{}, message string) error {
 	resp := make(map[string]interface{})
 	resp["status"] = "SUCCESS"

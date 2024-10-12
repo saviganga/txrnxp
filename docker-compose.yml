@@ -12,7 +12,7 @@ services:
       - db
   
   db:
-    image: postgres:alpine
+    image: postgres:16-alpine 
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
@@ -20,7 +20,7 @@ services:
     ports:
         - "5435:5435"
     volumes:
-      - postgres-db-5:/var/lib/postgresql/data
+      - postgres-db-7:/var/lib/postgresql/data
 
 volumes:
-  postgres-db-5:
+  postgres-db-7:

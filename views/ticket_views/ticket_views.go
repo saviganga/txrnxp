@@ -27,12 +27,7 @@ func GetEventTickets(c *fiber.Ctx) error {
 	entity := c.Get("Entity")
 	user_id := authenticated_user["id"].(string)
 
-	event_tickets, err := ticket_utils.GetEventTickets(user_id, entity, c)
-	if err != nil {
-		return utils.BadRequestResponse(c, err.Error())
-	}
-
-	return utils.SuccessResponse(c, event_tickets, "Successfully fetched event tickets")
+	return ticket_utils.GetEventTickets(user_id, entity, c)
 
 }
 
@@ -44,14 +39,20 @@ func GetUserTickets(c *fiber.Ctx) error {
 	}
 	user_id := authenticated_user["id"].(string)
 
-	user_tickets, err := ticket_utils.GetUserTickets(user_id, entity)
+	return ticket_utils.GetUserTickets(user_id, entity, c)
+
+
+}
+
+func GetUserTicketByReference(c *fiber.Ctx) error {
+
+	event, err := ticket_utils.GetUserTicketByReference(c)
 	if err != nil {
 		return utils.BadRequestResponse(c, err.Error())
 	}
-
-	return utils.SuccessResponse(c, user_tickets, "Successfully fetched user tickets")
-
+	return utils.SuccessResponse(c, event, "Successfully fetched user ticket")
 }
+
 
 func CreateUserTicket(c *fiber.Ctx) error {
 	user_ticket, err := ticket_utils.CreateUserTicket(c)
@@ -75,3 +76,12 @@ func TransferUserTicket(c *fiber.Ctx) error {
 }
 
 // VALIDATE TICKETS FOR ENTRY
+func ValidateUserTicket(c *fiber.Ctx) error {
+
+	is_validated, valid_ticket := ticket_utils.ValidateUserTicket(c)
+	if !is_validated {
+		return utils.BadRequestResponse(c, valid_ticket)
+	}
+	return utils.NoDataSuccessResponse(c, "Success")
+
+}
