@@ -120,6 +120,34 @@ func GetEventById(c *fiber.Ctx) error {
 
 }
 
+
+func UpdateEvent(c *fiber.Ctx) error {
+
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	eventRepo := utils.NewGenericDB[models.Event](db)
+	privilege := authenticated_user["privilege"].(string)
+	event_id := c.Params("id")
+
+	if strings.ToUpper(privilege) == "ADMIN" {
+		return utils.BadRequestResponse(c, "this feature is not available for admins")
+	}
+
+	event, err := eventRepo.UpdateEntity(c, "event", event_id)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	serialized_event, err := event_serializers.SerializeCreateEvent(event.Data, c)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	return utils.SuccessResponse(c, serialized_event, "success")
+
+
+}
+
 func UploadEventImage(c *fiber.Ctx) error {
 
 	authenticated_user := c.Locals("user").(jwt.MapClaims)

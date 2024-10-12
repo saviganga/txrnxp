@@ -14,6 +14,12 @@ import (
 	"github.com/google/uuid"
 )
 
+
+type UpdateEventSerializer struct {
+	Name string `json:"name"`
+}
+
+
 type EventDetailSerializer struct {
 	EventId     uuid.UUID                                            `json:"id" validate:"required"`
 	Reference   string                                               `json:"reference" validate:"required"`

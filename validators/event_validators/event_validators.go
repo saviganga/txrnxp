@@ -5,6 +5,7 @@ import (
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/utils"
+	"txrnxp/serializers/event_serializers"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
@@ -41,8 +42,22 @@ func ValidateEventOrganiser(c *fiber.Ctx) error {
 		if organiser_user[0].Id.String() != authenticated_user["id"] {
 			return utils.BadRequestResponse(c, "this feature is only available for event organisers")
 		}
-		
+
 	}
 
 	return c.Next()
+}
+
+func ValidateUpdateEventRequestBody(c *fiber.Ctx) error {
+
+	// validate the request body
+	body := new(event_serializers.UpdateEventSerializer)
+
+	if err := c.BodyParser(&body); err != nil {
+		return utils.BadRequestResponse(c, "Invalid request body")
+	}
+
+	c.Locals("body", body)
+	return c.Next()
+
 }

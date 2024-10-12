@@ -36,6 +36,11 @@ func GetEventById(c *fiber.Ctx) error {
 	return event_utils.GetEventById(c)
 }
 
+
+func UpdateEvent(c *fiber.Ctx) error {
+	return event_utils.UpdateEvent(c)
+}
+
 func CreateEvents(c *fiber.Ctx) error {
 
 	event, err := event_utils.CreateEvent(c)
