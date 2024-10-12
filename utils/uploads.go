@@ -185,19 +185,9 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string, id string) 
 		}
 		referenceValue := referenceField.Interface().(string)
 
-		// generate filename and save
-		nameField := modelValue.FieldByName("Name")
-		if !nameField.IsValid() {
-			return UploadImageResponse[T]{}, errors.New("model does not have an Name field")
-		}
-
-		nameValue := nameField.Interface().(string)
-		fileName := nameValue + referenceValue + ".png"
+		fileName := referenceValue + ".png"
 		bucketName = "txrnxp"
 		objectKey = "businesses/" + fileName
-
-
-
 
 	} else {
 		return UploadImageResponse[T]{}, errors.New("workflow not ready. BE PATIENT NIGGGGAAAAAA")
@@ -227,8 +217,6 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string, id string) 
 	}, nil
 
 }
-
-
 
 func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string, id string) (string, error) {
 
@@ -304,13 +292,6 @@ func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string, id string)
 			return "", errors.New("model does not have an Image field")
 		}
 
-		// generate filename and save
-		nameField := modelValue.FieldByName("Name")
-		if !nameField.IsValid() {
-			return "", errors.New("model does not have an Name field")
-		}
-
-		nameValue := nameField.Interface().(string)
 
 		// generate filename and save
 		referenceField := modelValue.FieldByName("Reference")
@@ -319,14 +300,9 @@ func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string, id string)
 		}
 
 		referenceValue := referenceField.Interface().(string)
-		fileName := nameValue + referenceValue + ".png"
+		fileName := referenceValue + ".png"
 		bucketName = "txrnxp"
 		objectKey = "businesses/" + fileName
-
-
-
-
-
 
 	} else {
 

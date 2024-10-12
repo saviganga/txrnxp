@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"time"
+	"txrnxp/initialisers"
 	"txrnxp/serializers/auth"
 	"txrnxp/utils"
 	"txrnxp/utils/auth_utils"
@@ -13,6 +15,8 @@ func Home(c *fiber.Ctx) error {
 }
 
 func Login(c *fiber.Ctx) error {
+
+	db := initialisers.ConnectDb().Db
 
 	platform := c.Get("Platform")
 	if platform == "" {
@@ -31,7 +35,7 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	if user != nil {
-		
+
 		// validate password
 		is_password := auth_utils.ValidateUserPassword(user, user_request.Password)
 		if !is_password {
@@ -44,13 +48,12 @@ func Login(c *fiber.Ctx) error {
 			return utils.BadRequestResponse(c, err.Error())
 		}
 
+		user.LastLogin = time.Now()
+		db.Save(&user)
+
 		// return authenticated user and token
 		respMessage := "User successfully authenticated"
 		return utils.SuccessResponse(c, token, respMessage)
-		// return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		// 	"message": respMessage,
-		// 	"token":   token,
-		// })
 
 	} else {
 
@@ -65,6 +68,9 @@ func Login(c *fiber.Ctx) error {
 		if err != nil {
 			return utils.BadRequestResponse(c, err.Error())
 		}
+
+		admin.LastLogin = time.Now()
+		db.Save(&admin)
 
 		// return authenticated user and token
 		respMessage := "User successfully authenticated"

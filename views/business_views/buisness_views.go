@@ -77,6 +77,15 @@ func GetBusiness(c *fiber.Ctx) error {
 
 }
 
+func GetBusinessById(c *fiber.Ctx) error {
+	return business_utils.GetBusinessById(c)
+}
+
+
+func UpdateBusiness(c *fiber.Ctx) error {
+	return business_utils.UpdateBusiness(c)
+}
+
 func UploadBusinessImage(c *fiber.Ctx) error {
 	return business_utils.UploadBusinessImage(c)
 }

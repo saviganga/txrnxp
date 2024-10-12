@@ -3,6 +3,7 @@ package business_validators
 import (
 	"txrnxp/initialisers"
 	"txrnxp/models"
+	"txrnxp/serializers/business_serializers"
 	"txrnxp/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -27,4 +28,20 @@ func ValidateBusinessOwner(c *fiber.Ctx) error {
 	}
 
 	return c.Next()
+}
+
+
+func ValidateUpdateBusinessRequestBody(c *fiber.Ctx) error {
+
+	// validate the request body
+	body := new(business_serializers.UpdateBusinessSerializer)
+
+	if err := c.BodyParser(&body); err != nil {
+		return utils.BadRequestResponse(c, "Invalid request body")
+	}
+
+	c.Locals("body", body)
+	return c.Next()
+
+
 }

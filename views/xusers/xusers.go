@@ -25,6 +25,16 @@ func GetUsers(c *fiber.Ctx) error {
 	return xusers_utils.GetUsers(c)
 }
 
+func GetUser(c *fiber.Ctx) error {
+	return xusers_utils.GetUser(c)
+}
+
+
+func UpdateUser(c *fiber.Ctx) error {
+	return xusers_utils.UpdateUser(c)
+}
+
+
 func UploadUserImage(c *fiber.Ctx) error {
 	return xusers_utils.UploadUserImage(c)
 }

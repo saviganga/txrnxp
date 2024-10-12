@@ -73,6 +73,50 @@ func GetUsers(c *fiber.Ctx) error {
 }
 
 
+func GetUser(c *fiber.Ctx) error {
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	user := models.Xuser{}
+	privilege := authenticated_user["privilege"]
+	if privilege == "ADMIN" || authenticated_user["id"] == c.Params("id") {
+		err := db.First(&user, "id = ?", c.Params("id")).Error
+		if err != nil {
+			return utils.BadRequestResponse(c, "Unable to get user")
+		}
+		serialized_user := user_serializers.SerializeUserSerializer(user)
+		return utils.SuccessResponse(c, serialized_user, "success")
+	} else {
+		return utils.BadRequestResponse(c, "You do not have permission to view this resource")
+	}
+
+}
+
+
+func UpdateUser(c *fiber.Ctx) error {
+
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	userRepo := utils.NewGenericDB[models.Xuser](db)
+	privilege := authenticated_user["privilege"].(string)
+	user_id := c.Params("id")
+
+	if strings.ToUpper(privilege) == "ADMIN" {
+		return utils.BadRequestResponse(c, "this feature is not available for admins")
+	}
+
+	user, err := userRepo.UpdateEntity(c, "xuser", user_id)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	serialized_user := user_serializers.SerializeUserSerializer(user.Data)
+	user.SerializedData = serialized_user
+	return utils.SuccessResponse(c, serialized_user, "Successfully uploaded user profile")
+
+
+}
+
+
 func UploadUserImage(c *fiber.Ctx) error {
 
 	authenticated_user := c.Locals("user").(jwt.MapClaims)

@@ -12,6 +12,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type UpdateBusinessSerializer struct {
+	Name string `json:"name"`
+}
+
 type ReadBusinessSerializer struct {
 	Id        uuid.UUID                       `json:"id" validate:"required"`
 	User      user_serializers.UserSerializer `json:"user" validate:"required"`
