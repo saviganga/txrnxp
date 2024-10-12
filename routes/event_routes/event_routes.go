@@ -3,9 +3,10 @@ package event_routes
 import (
 	"fmt"
 	"os"
-
+	"txrnxp/utils"
 	"txrnxp/utils/auth_utils"
 	"txrnxp/views/event_views"
+	"txrnxp/validators/event_validators"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -17,9 +18,17 @@ func Routes(app *fiber.App) {
 	pathPrefix := fmt.Sprintf("/api/%v/events/", version)
 	routes := app.Group(pathPrefix, logger.New())
 
-	routes.Get("", event_views.GetEvents)
+	routes.Get(
+		"",
+		utils.ValidateRequestLimitAndPage,
+		utils.ValidateRequestFilters(func() string {
+			return "event"
+		}),
+		event_views.GetEvents,
+	)
 	routes.Post("", auth_utils.ValidateAuth, event_views.CreateEvents)
 	routes.Get(":reference/", event_views.GetEventByReference)
+	routes.Post(":id/upload-image/", auth_utils.ValidateAuth, event_validators.ValidateEventOrganiser, event_views.UploadEventImage)
 
 	_ = routes
 }

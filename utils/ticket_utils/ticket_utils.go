@@ -78,80 +78,132 @@ func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSe
 	return &serialized_event_ticket, nil
 }
 
-func GetEventTickets(user_id string, entity string, c *fiber.Ctx) ([]event_serializers.ReadEventTicketSerializer, error) {
+func GetEventTickets(user_id string, entity string, c *fiber.Ctx) error {
 	db := initialisers.ConnectDb().Db
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
-	event_tickets := []models.EventTicket{}
 	privilege := authenticated_user["privilege"].(string)
+	repo := utils.NewGenericDB[models.EventTicket](db)
+
+	limit := c.Locals("size").(int)
+	page := c.Locals("page").(int)
+	joins := []string{"LEFT JOIN events as event ON event_tickets.event_id = event.id"}
+	preloads := []string{"Event"}
 
 	if strings.ToUpper(privilege) == "ADMIN" {
-		result := db.Model(&models.EventTicket{}).Joins("Event").Order("created_at desc").Find(&event_tickets)
-		if result.Error != nil {
-			return nil, result.Error
-		}
+
+		filters := c.Locals("filters").(map[string]interface{})
+		event_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get event tickets")
+        }
+		serialized_event_tickets := event_serializers.SerializeGetEventTickets(event_tickets.Data)
+		event_tickets.SerializedData = serialized_event_tickets
+        event_tickets.Status = "Success"
+        event_tickets.Message = "Successfully fetched event tickets"
+        event_tickets.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, event_tickets, "success")
+
 	} else {
 
 		if strings.ToUpper(entity) == "BUSINESS" {
+			filters := make(map[string]interface{})
+
 			businesses := []models.Business{}
 			err := db.First(&businesses, "user_id = ?", user_id).Error
 			if err != nil {
-				return nil, errors.New("oops! this user is not a business")
+				return utils.BadRequestResponse(c, "Oops! This user is not a business")
 			}
 			business_id := businesses[0].Id.String()
-			result := db.Model(&models.EventTicket{}).
-				Joins("LEFT JOIN events ON events.id = event_tickets.event_id").
-				Where("events.organiser_id = ?", business_id).
-				Preload("Event").
-				Order("event_tickets.created_at desc").
-				Find(&event_tickets)
-			if result.Error != nil {
-				return nil, result.Error
+
+			filters["event__organiser_id"] = business_id
+
+			event_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+			if err != nil {
+				return utils.BadRequestResponse(c, "Unable to get businesses")
 			}
+			serialized_event_tickets := event_serializers.SerializeGetEventTickets(event_tickets.Data)
+			event_tickets.SerializedData = serialized_event_tickets
+			event_tickets.Status = "Success"
+			event_tickets.Message = "Successfully fetched event_tickets"
+			event_tickets.Type = "OK"
+			return utils.PaginatedSuccessResponse(c, event_tickets, "success")
+
 		} else {
+			
+			filters := make(map[string]interface{})
 			organiser_id := user_id
-			result := db.Model(&models.EventTicket{}).
-				Joins("LEFT JOIN events ON events.id = event_tickets.event_id").
-				Where("events.organiser_id = ?", organiser_id).
-				Preload("Event").
-				Order("event_tickets.created_at desc").
-				Find(&event_tickets)
-			if result.Error != nil {
-				return nil, result.Error
+			filters["event__organiser_id"] = organiser_id
+
+			event_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+			if err != nil {
+				return utils.BadRequestResponse(c, "Unable to get businesses")
 			}
+			serialized_event_tickets := event_serializers.SerializeGetEventTickets(event_tickets.Data)
+			event_tickets.SerializedData = serialized_event_tickets
+			event_tickets.Status = "Success"
+			event_tickets.Message = "Successfully fetched event_tickets"
+			event_tickets.Type = "OK"
+			return utils.PaginatedSuccessResponse(c, event_tickets, "success")
 
 		}
 	}
 
-	serialized_event_tickets := event_serializers.SerializeGetEventTickets(event_tickets)
-
-	return serialized_event_tickets, nil
 }
 
-func GetUserTickets(user_id string, entity string) ([]event_serializers.ReadUserTicketSerializer, error) {
+func GetUserTickets(user_id string, entity string, c *fiber.Ctx) error {
 	db := initialisers.ConnectDb().Db
-	user_tickets := []models.UserTicket{}
+	// user_tickets := []models.UserTicket{}
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	privilege := authenticated_user["privilege"].(string)
+
+	repo := utils.NewGenericDB[models.UserTicket](db)
+
+	limit := c.Locals("size").(int)
+	page := c.Locals("page").(int)
+	joins := []string{"LEFT JOIN event_tickets as event_ticket ON user_tickets.event_ticket_id = event_ticket.id", "LEFT JOIN xusers as u ON user_tickets.user_id = u.id"}
+	preloads := []string{"EventTicket.Event", "User"}
+	filters := c.Locals("filters").(map[string]interface{})
+
+	if strings.ToUpper(privilege) == "ADMIN" {
+		user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get event tickets")
+        }
+
+		serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets.Data)
+		if err != nil {
+			return utils.BadRequestResponse(c, err.Error())
+		}
+		user_tickets.SerializedData = serialized_user_tickets
+        user_tickets.Status = "Success"
+        user_tickets.Message = "Successfully fetched event tickets"
+        user_tickets.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, user_tickets, "success")
+	}
 
 	if strings.ToUpper(entity) == "BUSINESS" {
-		return nil, errors.New("oops! this feature is not available for businesses")
+		return utils.BadRequestResponse(c, "This feature is not available for businesses")
 	} else {
-		result := db.Model(&models.UserTicket{}).
-			Preload("EventTicket.Event").
-			Joins("User").
-			Where("user_tickets.user_id = ?", user_id).
-			Order("created_at desc").
-			Find(&user_tickets)
 
-		if result.Error != nil {
-			return nil, result.Error
+		filters["u__id"] = user_id
+
+		user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+        if err != nil {
+            return utils.BadRequestResponse(c, "Unable to get event tickets")
+        }
+
+		serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets.Data)
+		if err != nil {
+			return utils.BadRequestResponse(c, err.Error())
 		}
+		user_tickets.SerializedData = serialized_user_tickets
+        user_tickets.Status = "Success"
+        user_tickets.Message = "Successfully fetched event tickets"
+        user_tickets.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, user_tickets, "success")
+
 	}
 
-	serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets)
-	if err != nil {
-		return nil, err
-	}
-
-	return serialized_user_tickets, nil
 }
 
 

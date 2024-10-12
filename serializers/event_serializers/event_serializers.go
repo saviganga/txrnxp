@@ -1,13 +1,16 @@
 package event_serializers
 
 import (
-	"fmt"
+	"errors"
 	"time"
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/serializers/ticket_serializers"
 	"txrnxp/serializers/user_serializers"
+	"txrnxp/utilities"
+	"txrnxp/utils"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
@@ -17,6 +20,7 @@ type EventDetailSerializer struct {
 	Organiser   map[string]interface{}                               `json:"organiser" validate:"required"`
 	IsBusiness  bool                                                 `json:"is_business" validate:"required"`
 	Name        string                                               `json:"name" validate:"required"`
+	Image       string                                               `json:"image" validate:"required"`
 	EventType   string                                               `json:"type" validate:"required"`
 	Description string                                               `json:"description" validate:"required"`
 	Address     string                                               `json:"address" validate:"required"`
@@ -35,6 +39,7 @@ type EventListSerializer struct {
 	Organiser   map[string]interface{} `json:"organiser" validate:"required"`
 	IsBusiness  bool                   `json:"is_business" validate:"required"`
 	Name        string                 `json:"name" validate:"required"`
+	Image       string                 `json:"image" validate:"required"`
 	EventType   string                 `json:"type" validate:"required"`
 	Description string                 `json:"description" validate:"required"`
 	Address     string                 `json:"address" validate:"required"`
@@ -51,6 +56,7 @@ type ReadCreateEventSerializer struct {
 	Reference   string    `json:"reference" validate:"required"`
 	IsBusiness  bool      `json:"is_business" validate:"required"`
 	Name        string    `json:"name" validate:"required"`
+	Image       string    `json:"image" validate:"required"`
 	EventType   string    `json:"type" validate:"required"`
 	Description string    `json:"description" validate:"required"`
 	Address     string    `json:"address" validate:"required"`
@@ -103,7 +109,7 @@ type ReadCreateUserTicketSerializer struct {
 	Count       int                    `json:"count" validate:"required"`
 	Barcode     map[string]interface{} `json:"barcode" validate:"required"`
 	IsValidated bool                   `json:"is_validated" validate:"required"`
-	ValidCount    int	`json:"valid_count" validate:"required"`
+	ValidCount  int                    `json:"valid_count" validate:"required"`
 	CreatedAt   time.Time              `json:"created_at" validate:"required"`
 	UpdatedAt   time.Time              `json:"updated_at" validate:"required"`
 }
@@ -117,7 +123,7 @@ type ReadUserTicketSerializer struct {
 	Count       int                                                `json:"count" validate:"required"`
 	Barcode     map[string]interface{}                             `json:"barcode" validate:"required"`
 	IsValidated bool                                               `json:"is_validated" validate:"required"`
-	ValidCount    int	`json:"valid_count" validate:"required"`
+	ValidCount  int                                                `json:"valid_count" validate:"required"`
 	CreatedAt   time.Time                                          `json:"created_at" validate:"required"`
 	UpdatedAt   time.Time                                          `json:"updated_at" validate:"required"`
 }
@@ -130,40 +136,31 @@ func PopulateEventOrganiserDetails(name string, is_business bool, id string) map
 	}
 }
 
-func SerializeReadEventsList(events []models.Event) ([]EventListSerializer, error) {
+func SerializeReadEventsList(events []models.Event, c *fiber.Ctx) ([]EventListSerializer, error) {
 
 	db := initialisers.ConnectDb().Db
+	eventRepo := utils.NewGenericDB[models.Event](db)
 	event_serializer := new(EventListSerializer)
 	event_serializers := []EventListSerializer{}
+	var imageUrl string
 
 	for _, event := range events {
 
-		organiser_user := []models.Xuser{}
-		organiser_business := []models.Business{}
-
-		organiser_details := make(map[string]interface{})
-
 		// get the event organiser details
 		organiser_id := event.OrganiserId
-		is_business := event.IsBusiness
 
-		if is_business {
-			err := db.Model(&models.Business{}).First(&organiser_business, "id = ?", organiser_id).Error
+		organiser_details, err := utilities.GetEventOrganiser(organiser_id, event.Reference, event.IsBusiness)
+		if err != nil {
+			return nil, errors.New(err.Error())
+		}
+
+		if event.Image != "" {
+			imageUrl, err = eventRepo.GetSignedUrl(c, "event", event.Id.String())
 			if err != nil {
-				return nil, fmt.Errorf(fmt.Sprintf("oops! unable to fetch events - organiser: %s", event.Reference))
+				return nil, errors.New(err.Error())
 			}
-			organiser_details["name"] = organiser_business[0].Name
-			organiser_details["is_business"] = true
-			organiser_details["id"] = organiser_id
-
 		} else {
-			err := db.Model(&models.Xuser{}).First(&organiser_user, "id = ?", organiser_id).Error
-			if err != nil {
-				return nil, fmt.Errorf(fmt.Sprintf("oops! unable to fetch events - organiser: %s", event.Reference))
-			}
-			organiser_details["name"] = organiser_user[0].UserName
-			organiser_details["is_business"] = false
-			organiser_details["id"] = organiser_id
+			imageUrl = ""
 		}
 
 		// fill in the serializer
@@ -171,6 +168,7 @@ func SerializeReadEventsList(events []models.Event) ([]EventListSerializer, erro
 		event_serializer.Reference = event.Reference
 		event_serializer.Organiser = organiser_details
 		event_serializer.Name = event.Name
+		event_serializer.Image = imageUrl
 		event_serializer.EventType = event.EventType
 		event_serializer.Description = event.Description
 		event_serializer.Address = event.Address
@@ -240,7 +238,7 @@ func SerializeReadUserTickets(user_tickets []models.UserTicket) ([]ReadUserTicke
 			Count:       ticket.Count,
 			Barcode:     ticket.Barcode,
 			IsValidated: ticket.IsValidated,
-			ValidCount: ticket.ValidCount,
+			ValidCount:  ticket.ValidCount,
 			CreatedAt:   ticket.CreatedAt,
 			UpdatedAt:   ticket.UpdatedAt,
 		}
@@ -258,7 +256,7 @@ func SerializeCreateUserTickets(user_ticket models.UserTicket) (ReadCreateUserTi
 		Count:       user_ticket.Count,
 		Barcode:     user_ticket.Barcode,
 		IsValidated: user_ticket.IsValidated,
-		ValidCount: user_ticket.ValidCount,
+		ValidCount:  user_ticket.ValidCount,
 		CreatedAt:   user_ticket.CreatedAt,
 		UpdatedAt:   user_ticket.UpdatedAt,
 	}
@@ -266,11 +264,15 @@ func SerializeCreateUserTickets(user_ticket models.UserTicket) (ReadCreateUserTi
 	return serialized_user_ticket, nil
 }
 
-func SerializeGetEventByReference(event_list []models.Event, event_tickets []models.EventTicket, organiser_details map[string]interface{}) EventDetailSerializer {
+func SerializeGetEventByReference(c *fiber.Ctx, event_list []models.Event, event_tickets []models.EventTicket, organiser_details map[string]interface{}) (*EventDetailSerializer, error) {
 
+	db := initialisers.ConnectDb().Db
 	event := new(EventDetailSerializer)
 	eventTicket := new(ticket_serializers.EventTicketCustomuserSerializer)
 	eventTickets := []ticket_serializers.EventTicketCustomuserSerializer{}
+	var imageUrl string
+	var err error
+	eventRepo := utils.NewGenericDB[models.Event](db)
 
 	for _, eventticket := range event_tickets {
 
@@ -287,12 +289,22 @@ func SerializeGetEventByReference(event_list []models.Event, event_tickets []mod
 
 	}
 
+	if event_list[0].Image != "" {
+		imageUrl, err = eventRepo.GetSignedUrl(c, "event", event_list[0].Id.String())
+		if err != nil {
+			return nil, errors.New(err.Error())
+		}
+	} else {
+		imageUrl = ""
+	}
+
 	// fill in the serializer
 	event.EventId = event_list[0].Id
 	event.Reference = event_list[0].Reference
 	event.Tickets = eventTickets
 	event.Organiser = organiser_details
 	event.Name = event_list[0].Name
+	event.Image = imageUrl
 	event.EventType = event_list[0].EventType
 	event.Description = event_list[0].Description
 	event.Address = event_list[0].Address
@@ -303,16 +315,31 @@ func SerializeGetEventByReference(event_list []models.Event, event_tickets []mod
 	event.CreatedAt = event_list[0].CreatedAt
 	event.UpdatedAt = event_list[0].UpdatedAt
 
-	return *event
+	return event, nil
 }
 
-func SerializeCreateEvent(event models.Event) ReadCreateEventSerializer {
+func SerializeCreateEvent(event models.Event, c *fiber.Ctx) (*ReadCreateEventSerializer, error) {
+
+	db := initialisers.ConnectDb().Db
+	var imageUrl string
+	var err error
+	eventRepo := utils.NewGenericDB[models.Event](db)
 
 	serialized_event := new(ReadCreateEventSerializer)
+
+	if event.Image != "" {
+		imageUrl, err = eventRepo.GetSignedUrl(c, "event", event.Id.String())
+		if err != nil {
+			return nil, errors.New(err.Error())
+		}
+	} else {
+		imageUrl = ""
+	}
 
 	serialized_event.EventId = event.Id
 	serialized_event.Reference = event.Reference
 	serialized_event.Name = event.Name
+	serialized_event.Image = imageUrl
 	serialized_event.IsBusiness = event.IsBusiness
 	serialized_event.EventType = event.EventType
 	serialized_event.Description = event.Description
@@ -324,7 +351,7 @@ func SerializeCreateEvent(event models.Event) ReadCreateEventSerializer {
 	serialized_event.CreatedAt = event.CreatedAt
 	serialized_event.UpdatedAt = event.UpdatedAt
 
-	return *serialized_event
+	return serialized_event, nil
 
 }
 

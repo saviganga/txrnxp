@@ -20,6 +20,7 @@ type Event struct {
 	OrganisaerId string    `gorm:"type:varchar(50)" json:"organisaer_id"`
 	IsBusiness   bool      `gorm:"type:boolean;default:false" json:"is_business"`
 	Name         string    `gorm:"type:varchar(50);not null" json:"name"`
+	Image        string    `gorm:"type:varchar(150)" json:"image"`
 	EventType    string    `gorm:"type:varchar(50);default: ONLINE" json:"event_type"`
 	Reference    string    `gorm:"type:varchar(50);unique" json:"reference"`
 	Country      string    `gorm:"type:varchar(50);default: NGA" json:"country"`

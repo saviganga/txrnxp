@@ -2,11 +2,55 @@ package utils
 
 import (
 	"errors"
+	"log"
 	"math/rand"
+	"os"
 	"strconv"
 
+	"context"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 )
+
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+
+	awsAccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+	awsSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	awsRegion := os.Getenv("AWS_REGION")
+
+	if awsAccessKeyID == "" || awsSecretAccessKey == "" || awsRegion == "" {
+		log.Fatal("AWS credentials or region not set in .env file")
+	}
+
+	staticCreds := aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(
+		awsAccessKeyID,
+		awsSecretAccessKey,
+		""))
+
+	// load AWS config with static credentials
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(awsRegion),
+		config.WithCredentialsProvider(staticCreds),
+	)
+	if err != nil {
+		log.Fatalf("unable to load SDK config, %v", err)
+	}
+
+	// create an S3 clients
+	s3Client = s3.NewFromConfig(cfg)
+	presignClient = s3.NewPresignClient(s3Client)
+
+}
 
 func GenerateRandomString(length int) string {
 	characters := "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ"

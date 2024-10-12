@@ -169,11 +169,11 @@ func PayAdminCommission(commission_type string, amount string, event_reference s
 	}
 
 	// calculate the commission amount
-	commission_amount := ( commission_float/float64(100) * (amount_float * float64(count)) )
+	commission_amount := ( (commission_float/float64(100)) * (amount_float * float64(count)) )
 	if commission_amount > cap_float {
 		commission_amount = cap_float
 	} else {
-		commission_amount = ( commission_float/float64(100) * amount_float )
+		commission_amount = ( (commission_float/float64(100)) * (amount_float * float64(count)) )
 	}
 	commission_amount_str := fmt.Sprintf("%.2f", commission_amount)
 
