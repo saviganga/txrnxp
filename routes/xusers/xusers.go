@@ -18,6 +18,7 @@ func Routes(app *fiber.App) {
 	pathPrefix := fmt.Sprintf("/api/%v/users/", version)
 	routes := app.Group(pathPrefix, logger.New())
 
+	routes.Post("", xusers.CreateUsers)
 	routes.Get(
 		"",
 		auth_utils.ValidateAuth,
@@ -27,7 +28,11 @@ func Routes(app *fiber.App) {
 		}),
 		xusers.GetUsers,
 	)
-	routes.Post("", xusers.CreateUsers)
+	routes.Get(
+		":id/",
+		auth_utils.ValidateAuth,
+		xusers.GetUser,
+	)
 	routes.Post(":id/upload-image/", auth_utils.ValidateAuth, xusers.UploadUserImage)
 
 	_ = routes

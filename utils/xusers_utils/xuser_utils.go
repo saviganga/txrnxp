@@ -73,6 +73,25 @@ func GetUsers(c *fiber.Ctx) error {
 }
 
 
+func GetUser(c *fiber.Ctx) error {
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	db := initialisers.ConnectDb().Db
+	user := models.Xuser{}
+	privilege := authenticated_user["privilege"]
+	if privilege == "ADMIN" || authenticated_user["id"] == c.Params("id") {
+		err := db.First(&user, "id = ?", c.Params("id")).Error
+		if err != nil {
+			return utils.BadRequestResponse(c, "Unable to get user")
+		}
+		serialized_user := user_serializers.SerializeUserSerializer(user)
+		return utils.SuccessResponse(c, serialized_user, "success")
+	} else {
+		return utils.BadRequestResponse(c, "You do not have permission to view this resource")
+	}
+
+}
+
+
 func UploadUserImage(c *fiber.Ctx) error {
 
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
