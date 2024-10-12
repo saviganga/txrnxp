@@ -31,6 +31,12 @@ type ExportUserSerializer struct {
 	PhoneNumber string    `json:"phone_number"`
 }
 
+
+type UpdateUserSerializer struct {
+	FirstName   string    `json:"first_name"`
+	LastName    string    `json:"last_name"`
+}
+
 func SerializeUser(user models.AdminUser) UserSerializer {
 
 	serialized_user := new(UserSerializer)

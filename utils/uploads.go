@@ -196,9 +196,6 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string, id string) 
 		bucketName = "txrnxp"
 		objectKey = "businesses/" + fileName
 
-
-
-
 	} else {
 		return UploadImageResponse[T]{}, errors.New("workflow not ready. BE PATIENT NIGGGGAAAAAA")
 	}
@@ -227,8 +224,6 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string, id string) 
 	}, nil
 
 }
-
-
 
 func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string, id string) (string, error) {
 
@@ -322,11 +317,6 @@ func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string, id string)
 		fileName := nameValue + referenceValue + ".png"
 		bucketName = "txrnxp"
 		objectKey = "businesses/" + fileName
-
-
-
-
-
 
 	} else {
 

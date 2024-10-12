@@ -15,11 +15,9 @@ func GetWallets(c *fiber.Ctx) error {
 	return wallets_utils.GetUserWallets(c)
 }
 
-
 func GetAdminWallet(c *fiber.Ctx) error {
 	return wallets_utils.GetAdminWallet(c)
 }
-
 
 func CreateAdminWallet(c *fiber.Ctx) error {
 	return wallets_utils.CreateAdminWallet()
@@ -36,7 +34,6 @@ func AdminTopupWallet(c *fiber.Ctx) error {
 func GetUserWalletTransactions(c *fiber.Ctx) error {
 	return wallets_utils.GetUserWalletTransactions(c)
 }
-
 
 func GetAdminWalletTransactions(c *fiber.Ctx) error {
 	return wallets_utils.GetAdminWalletTransactions(c)

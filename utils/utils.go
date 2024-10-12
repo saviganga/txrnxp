@@ -5,7 +5,9 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"reflect"
 	"strconv"
+	"strings"
 
 	"context"
 
@@ -13,10 +15,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt"
 
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
+
+type UpdateEntityResponse[T any] struct {
+	Data           T           `json:"-"`
+	SerializedData interface{} `json:"data"`
+}
 
 func init() {
 	err := godotenv.Load()
@@ -93,4 +102,73 @@ func notInList(value string, list []string) bool {
 		}
 	}
 	return true
+}
+
+func (r *GenericDBStruct[T]) UpdateEntity(c *fiber.Ctx, table string, id string) (UpdateEntityResponse[T], error) {
+
+	// validate db model
+	var model T
+	var modelField reflect.Value
+	var modelValue reflect.Value
+
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+
+	table = strings.ToLower(table)
+	validTables := []string{"xuser", "business", "event", "event_ticket", "user_ticket"}
+	if notInList(table, validTables) {
+		return UpdateEntityResponse[T]{}, errors.New("invalid model")
+	}
+
+	fields := c.Locals("body")
+
+	val := reflect.ValueOf(fields)
+	typ := reflect.TypeOf(fields)
+
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+		typ = typ.Elem()
+	}
+
+	if table == "xuser" {
+
+		if authenticated_user["id"].(string) != id {
+			return UpdateEntityResponse[T]{}, errors.New("you do not have permission to perform this action")
+		}
+
+		if err := r.db.First(&model, "id = ?", id).Error; err != nil {
+			return UpdateEntityResponse[T]{}, errors.New("model not found")
+		}
+
+		for i := 0; i < val.NumField(); i++ {
+
+			// get the field name
+			fieldName := typ.Field(i).Name
+
+			// get the field value
+			fieldValue := val.Field(i).Interface()
+
+			// get the values in the fields
+			modelValue = reflect.ValueOf(&model).Elem()
+			modelField = modelValue.FieldByName(fieldName)
+			if !modelField.IsValid() {
+				return UpdateEntityResponse[T]{}, errors.New("model does not have " + fieldName + "field")
+			}
+
+			// update the field value
+			modelField.SetString(fieldValue.(string))
+
+		}
+
+		if err := r.db.Save(&model).Error; err != nil {
+			return UpdateEntityResponse[T]{}, errors.New("unable to update model")
+		}
+
+		return UpdateEntityResponse[T]{
+			Data: model,
+		}, nil
+
+	} else {
+		return UpdateEntityResponse[T]{}, errors.New("chill out for the workflow to be ready my guy")
+	}
+
 }
