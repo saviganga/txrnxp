@@ -28,7 +28,7 @@ func Routes(app *fiber.App) {
 		xusers.GetUsers,
 	)
 	routes.Post("", xusers.CreateUsers)
-	routes.Post("upload-image/", auth_utils.ValidateAuth, xusers.UploadUserImage)
+	routes.Post(":id/upload-image/", auth_utils.ValidateAuth, xusers.UploadUserImage)
 
 	_ = routes
 }

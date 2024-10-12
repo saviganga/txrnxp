@@ -30,7 +30,7 @@ type UploadImageResponse[T any] struct {
 var s3Client *s3.Client
 var presignClient *s3.PresignClient
 
-func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string) (UploadImageResponse[T], error) {
+func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string, id string) (UploadImageResponse[T], error) {
 
 	// validate db model
 	var model T
@@ -39,6 +39,7 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string) (UploadImag
 	var imageData []byte
 	var err error
 	var imageField reflect.Value
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
 
 	table = strings.ToLower(table)
 	validTables := []string{"xuser", "business", "event", "event_ticket", "user_ticket"}
@@ -46,10 +47,8 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string) (UploadImag
 		return UploadImageResponse[T]{}, errors.New("invalid model")
 	}
 
-	authenticated_user := c.Locals("user").(jwt.MapClaims)
-
 	if table == "xuser" {
-		
+
 		if err := r.db.First(&model, "id = ?", authenticated_user["id"].(string)).Error; err != nil {
 			return UploadImageResponse[T]{}, errors.New("model not found")
 		}
@@ -95,6 +94,54 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string) (UploadImag
 		bucketName = "txrnxp"
 		objectKey = "users/" + fileName
 
+	} else if table == "event" {
+
+		if err := r.db.First(&model, "id = ?", id).Error; err != nil {
+			return UploadImageResponse[T]{}, errors.New("model not found")
+		}
+
+		modelValue := reflect.ValueOf(&model).Elem()
+
+		// validate reference field
+		referenceField := modelValue.FieldByName("Reference")
+		if !referenceField.IsValid() {
+			return UploadImageResponse[T]{}, errors.New("model does not have an Email field")
+		}
+		referenceValue := referenceField.Interface().(string)
+
+		// validate model image field
+		imageField = modelValue.FieldByName("Image")
+		if !imageField.IsValid() {
+			return UploadImageResponse[T]{}, errors.New("model does not have an Image field")
+		}
+
+		// validate the request body
+		body := new(UploadImageSerializer)
+
+		if err := c.BodyParser(&body); err != nil {
+			return UploadImageResponse[T]{}, err
+		}
+
+		// validate the base64 encoding
+		if !strings.Contains(body.Image, "data:image") {
+			return UploadImageResponse[T]{}, errors.New("invalid image format")
+		}
+
+		// get image data from base 64 string
+		parts := strings.Split(body.Image, ",")
+		if len(parts) < 2 {
+			return UploadImageResponse[T]{}, errors.New("invalid image data")
+		}
+
+		imageData, err = base64.StdEncoding.DecodeString(parts[1])
+		if err != nil {
+			return UploadImageResponse[T]{}, errors.New("unable to decode image")
+		}
+
+		fileName := referenceValue + ".png"
+		bucketName = "txrnxp"
+		objectKey = "events/" + fileName
+
 	} else {
 		return UploadImageResponse[T]{}, errors.New("workflow not ready. BE PATIENT NIGGGGAAAAAA")
 	}
@@ -124,7 +171,7 @@ func (r *GenericDBStruct[T]) UploadImage(c *fiber.Ctx, table string) (UploadImag
 
 }
 
-func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string) (string, error) {
+func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string, id string) (string, error) {
 
 	var model T
 	var bucketName string
@@ -138,11 +185,9 @@ func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string) (string, e
 		return "", errors.New("invalid model")
 	}
 
-	authenticated_user := c.Locals("user").(jwt.MapClaims)
-
 	if table == "xuser" {
 
-		if err := r.db.First(&model, "id = ?", authenticated_user["id"].(string)).Error; err != nil {
+		if err := r.db.First(&model, "id = ?", id).Error; err != nil {
 			return "", errors.New("model not found")
 		}
 
@@ -163,6 +208,30 @@ func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string) (string, e
 		bucketName = "txrnxp"
 		objectKey = "users/" + fileName
 
+	} else if table == "event" {
+
+		if err := r.db.First(&model, "id = ?", id).Error; err != nil {
+			return "", errors.New("model not found")
+		}
+
+		modelValue := reflect.ValueOf(&model).Elem()
+
+		imageField = modelValue.FieldByName("Image")
+		if !imageField.IsValid() {
+			return "", errors.New("model does not have an Image field")
+		}
+
+		// generate filename and save
+		referenceField := modelValue.FieldByName("Reference")
+		if !referenceField.IsValid() {
+			return "", errors.New("model does not have an Reference field")
+		}
+
+		referenceValue := referenceField.Interface().(string)
+		fileName := referenceValue + ".png"
+		bucketName = "txrnxp"
+		objectKey = "events/" + fileName
+
 	} else {
 
 		return "", errors.New("workflow not ready. BE PATIENT NIGGGGAAAAAA")
@@ -181,4 +250,3 @@ func (r *GenericDBStruct[T]) GetSignedUrl(c *fiber.Ctx, table string) (string, e
 	return presignedURL.URL, nil
 
 }
-

@@ -57,7 +57,7 @@ func GetUsers(c *fiber.Ctx) error {
 		users := []models.Xuser{}
 		db.Order("created_at desc").First(&users, "id = ?", authenticated_user["id"])
 		if users[0].Image != "" {
-			imageUrl, err := userRepo.GetSignedUrl(c, "xuser")
+			imageUrl, err := userRepo.GetSignedUrl(c, "xuser", users[0].Id.String())
 			if err != nil {
 				return utils.BadRequestResponse(c, err.Error())
 			}
@@ -79,12 +79,13 @@ func UploadUserImage(c *fiber.Ctx) error {
 	db := initialisers.ConnectDb().Db
 	userRepo := utils.NewGenericDB[models.Xuser](db)
 	privilege := authenticated_user["privilege"].(string)
+	user_id := c.Params("id")
 
 	if strings.ToUpper(privilege) == "ADMIN" {
 		return utils.BadRequestResponse(c, "this feature is not available for admins")
 	}
 
-	user, err := userRepo.UploadImage(c, "xuser")
+	user, err := userRepo.UploadImage(c, "xuser", user_id)
 	if err != nil {
 		return utils.BadRequestResponse(c, err.Error())
 	}

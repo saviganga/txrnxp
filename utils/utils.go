@@ -9,10 +9,10 @@ import (
 
 	"context"
 
-    "github.com/aws/aws-sdk-go-v2/aws"
-    "github.com/aws/aws-sdk-go-v2/config"
-    "github.com/aws/aws-sdk-go-v2/credentials"
-    "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -33,21 +33,21 @@ func init() {
 	}
 
 	staticCreds := aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(
-        awsAccessKeyID,
-        awsSecretAccessKey,
-        ""))
+		awsAccessKeyID,
+		awsSecretAccessKey,
+		""))
 
-    // load AWS config with static credentials
-    cfg, err := config.LoadDefaultConfig(context.TODO(),
-        config.WithRegion(awsRegion),
-        config.WithCredentialsProvider(staticCreds),
-    )
-    if err != nil {
-        log.Fatalf("unable to load SDK config, %v", err)
-    }
+	// load AWS config with static credentials
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(awsRegion),
+		config.WithCredentialsProvider(staticCreds),
+	)
+	if err != nil {
+		log.Fatalf("unable to load SDK config, %v", err)
+	}
 
-    // create an S3 clients
-    s3Client = s3.NewFromConfig(cfg)
+	// create an S3 clients
+	s3Client = s3.NewFromConfig(cfg)
 	presignClient = s3.NewPresignClient(s3Client)
 
 }

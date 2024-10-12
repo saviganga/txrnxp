@@ -19,7 +19,7 @@ func GetEvents(c *fiber.Ctx) error {
 		return utils.BadRequestResponse(c, "Unable to get businesses")
 	}
 
-	serialized_events, err := event_serializers.SerializeReadEventsList(events.Data)
+	serialized_events, err := event_serializers.SerializeReadEventsList(events.Data, c)
 	if err != nil {
 		return utils.BadRequestResponse(c, err.Error())
 	}
@@ -49,4 +49,9 @@ func GetEventByReference(c *fiber.Ctx) error {
 		return utils.BadRequestResponse(c, err.Error())
 	}
 	return utils.SuccessResponse(c, event, "Successfully fetched event")
+}
+
+
+func UploadEventImage(c *fiber.Ctx) error {
+	return event_utils.UploadEventImage(c)
 }
