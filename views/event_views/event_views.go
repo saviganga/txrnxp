@@ -32,6 +32,10 @@ func GetEvents(c *fiber.Ctx) error {
 	return utils.PaginatedSuccessResponse(c, events, "success")
 }
 
+func GetEventById(c *fiber.Ctx) error {
+	return event_utils.GetEventById(c)
+}
+
 func CreateEvents(c *fiber.Ctx) error {
 
 	event, err := event_utils.CreateEvent(c)
@@ -50,7 +54,6 @@ func GetEventByReference(c *fiber.Ctx) error {
 	}
 	return utils.SuccessResponse(c, event, "Successfully fetched event")
 }
-
 
 func UploadEventImage(c *fiber.Ctx) error {
 	return event_utils.UploadEventImage(c)

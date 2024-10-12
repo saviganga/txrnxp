@@ -26,6 +26,11 @@ func Routes(app *fiber.App) {
 		}),
 		event_views.GetEvents,
 	)
+	// routes.Get(
+	// 	":id/",
+	// 	auth_utils.ValidateAuth,
+	// 	event_views.GetEventById,
+	// )
 	routes.Post("", auth_utils.ValidateAuth, event_views.CreateEvents)
 	routes.Get(":reference/", event_views.GetEventByReference)
 	routes.Post(":id/upload-image/", auth_utils.ValidateAuth, event_validators.ValidateEventOrganiser, event_views.UploadEventImage)
