@@ -1,6 +1,7 @@
 package event_views
 
 import (
+	"time"
 	"txrnxp/initialisers"
 	"txrnxp/models"
 	"txrnxp/serializers/event_serializers"
@@ -14,7 +15,10 @@ func GetEvents(c *fiber.Ctx) error {
 	db := initialisers.ConnectDb().Db
 	eventRepo := utils.NewGenericDB[models.Event](db)
 
-	events, err := eventRepo.GetPagedAndFiltered(c.Locals("size").(int), c.Locals("page").(int), c.Locals("filters").(map[string]interface{}), nil, nil)
+	filters := c.Locals("filters").(map[string]interface{})
+	filters["start_time"] = time.Now()
+
+	events, err := eventRepo.GetPagedAndFiltered(c.Locals("size").(int), c.Locals("page").(int), filters, nil, nil)
 	if err != nil {
 		return utils.BadRequestResponse(c, "Unable to get businesses")
 	}
