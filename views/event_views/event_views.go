@@ -46,7 +46,7 @@ func GetMyEvents(c *fiber.Ctx) error {
 	eventRepo := utils.NewGenericDB[models.Event](db)
 	filters := c.Locals("filters").(map[string]interface{})
 
-	if strings.ToUpper(privilege.(string))  == "ADMIN" {
+	if strings.ToUpper(privilege.(string)) == "ADMIN" {
 		return utils.BadRequestResponse(c, "oops! this feature is not available for admins")
 	}
 
@@ -126,4 +126,57 @@ func GetEventByReference(c *fiber.Ctx) error {
 
 func UploadEventImage(c *fiber.Ctx) error {
 	return event_utils.UploadEventImage(c)
+}
+
+func GetEventHistory(c *fiber.Ctx) error {
+	db := initialisers.ConnectDb().Db
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	repo := utils.NewGenericDB[models.UserTicket](db)
+	entity := c.Get("Entity")
+	var events []models.Event
+
+	// validate the user
+	if strings.ToLower(entity) == "" {
+		return utils.BadRequestResponse(c, "please pass in your entity header")
+	}
+	
+	// validate the user
+	if strings.ToLower(entity) != "user" {
+		return utils.BadRequestResponse(c, "you do not have permission to perform this action")
+	}
+	user_id := authenticated_user["id"].(string)
+
+	// pagination and filteration
+	limit := c.Locals("size").(int)
+	page := c.Locals("page").(int)
+	joins := []string{"LEFT JOIN event_tickets as event_ticket ON user_tickets.event_ticket_id = event_ticket.id", "LEFT JOIN xusers as u ON user_tickets.user_id = u.id"}
+	preloads := []string{"EventTicket.Event", "User"}
+	filters := c.Locals("filters").(map[string]interface{})
+	filters["u__id"] = user_id
+
+	// get the user tickets 
+	user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+	if err != nil {
+		return utils.BadRequestResponse(c, "Unable to get events")
+	}
+
+	for _, ticket := range(user_tickets.Data) {
+		event := ticket.EventTicket.Event
+		events = append(events, event)
+	}
+
+	serialized_events, err := event_serializers.SerializeReadEventsList(events, c)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	user_tickets.SerializedData = serialized_events
+	user_tickets.Status = "Success"
+	user_tickets.Message = "Successfully fetched events"
+	user_tickets.Type = "OK"
+
+	return utils.PaginatedSuccessResponse(c, user_tickets, "success")
+
+	
+
 }
