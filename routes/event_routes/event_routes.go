@@ -26,6 +26,15 @@ func Routes(app *fiber.App) {
 		}),
 		event_views.GetEvents,
 	)
+	routes.Get(
+		"my-events/",
+		auth_utils.ValidateAuth,
+		utils.ValidateRequestLimitAndPage,
+		utils.ValidateRequestFilters(func() string {
+			return "event"
+		}),
+		event_views.GetMyEvents,
+	)
 	// routes.Get(
 	// 	":id/",
 	// 	auth_utils.ValidateAuth,
