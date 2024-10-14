@@ -27,6 +27,15 @@ func Routes(app *fiber.App) {
 		}),
 		ticket_views.GetEventTickets,
 	)
+	routes.Get(
+		"events/:id",
+		auth_utils.ValidateAuth,
+		utils.ValidateRequestLimitAndPage,
+		utils.ValidateRequestFilters(func() string {
+			return "event_ticket"
+		}),
+		ticket_views.GetEventTicketById,
+	)
 	routes.Post("events/", auth_utils.ValidateAuth, ticket_views.CreateEventTicket)
 	routes.Get(
 		"users/",

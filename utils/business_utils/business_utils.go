@@ -128,3 +128,12 @@ func UploadBusinessImage(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, serialized_business, "Successfully uploaded business image")
 
 }
+
+
+func RemoveBusinessKeys(filters map[string]interface{}) {
+	for key := range filters {
+		if strings.Contains(key, "business__") {
+			delete(filters, key)
+		}
+	}
+}
