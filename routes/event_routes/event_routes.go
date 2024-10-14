@@ -26,6 +26,24 @@ func Routes(app *fiber.App) {
 		}),
 		event_views.GetEvents,
 	)
+	routes.Get(
+		"my-events/",
+		auth_utils.ValidateAuth,
+		utils.ValidateRequestLimitAndPage,
+		utils.ValidateRequestFilters(func() string {
+			return "event"
+		}),
+		event_views.GetMyEvents,
+	)
+	routes.Get(
+		"history/",
+		auth_utils.ValidateAuth,
+		utils.ValidateRequestLimitAndPage,
+		utils.ValidateRequestFilters(func() string {
+			return "event"
+		}),
+		event_views.GetEventHistory,
+	)
 	// routes.Get(
 	// 	":id/",
 	// 	auth_utils.ValidateAuth,
@@ -34,6 +52,16 @@ func Routes(app *fiber.App) {
 	routes.Post("", auth_utils.ValidateAuth, event_views.CreateEvents)
 	routes.Patch(":id/", auth_utils.ValidateAuth, event_validators.ValidateEventOrganiser, event_validators.ValidateUpdateEventRequestBody, event_views.UpdateEvent)
 	routes.Get(":reference/", event_views.GetEventByReference)
+	routes.Get(
+		":id/tickets/",
+		auth_utils.ValidateAuth,
+		event_validators.ValidateEventOrganiser,
+		utils.ValidateRequestLimitAndPage,
+		utils.ValidateRequestFilters(func() string {
+			return "event_ticket"
+		}),
+		event_views.EventTickets,
+	)
 	routes.Post(":id/upload-image/", auth_utils.ValidateAuth, event_validators.ValidateEventOrganiser, event_views.UploadEventImage)
 
 	_ = routes
