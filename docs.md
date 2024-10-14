@@ -62,6 +62,66 @@ This endpoint allows users to view their user account information.
 ```
 
 
+#### 4. Retrieve user data
+This endpoint allows users to retrieve their user account information.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/users/<user_id>`
+- **Method**: GET
+- **Authorization**: true
+
+**Request Headers:**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+
+#### 5. Update user data
+This endpoint allows users to update their user account information.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/users/<user_id>`
+- **Method**: GET
+- **Authorization**: true
+
+**Request Body:**
+```json
+{
+    "username": "jondoe",
+    "password": "xxxxxx"
+}
+```
+
+**Request Headers:**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+
+#### 6. Upload user image
+This endpoint allows users to upload a profile picture.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/users/<user_id>/upload-image`
+- **Method**: GET
+- **Authorization**: true
+
+**Request Body:**
+```json
+{
+    "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/"
+}
+```
+
+**Request Headers:**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+
 ### Wallets
 
 #### 1. Get user wallet
