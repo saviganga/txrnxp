@@ -8,6 +8,7 @@ import (
 	"txrnxp/serializers/event_serializers"
 	"txrnxp/utils"
 	"txrnxp/utils/event_utils"
+	"txrnxp/utils/ticket_utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
@@ -139,7 +140,7 @@ func GetEventHistory(c *fiber.Ctx) error {
 	if strings.ToLower(entity) == "" {
 		return utils.BadRequestResponse(c, "please pass in your entity header")
 	}
-	
+
 	// validate the user
 	if strings.ToLower(entity) != "user" {
 		return utils.BadRequestResponse(c, "you do not have permission to perform this action")
@@ -154,13 +155,13 @@ func GetEventHistory(c *fiber.Ctx) error {
 	filters := c.Locals("filters").(map[string]interface{})
 	filters["u__id"] = user_id
 
-	// get the user tickets 
+	// get the user tickets
 	user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
 	if err != nil {
 		return utils.BadRequestResponse(c, "Unable to get events")
 	}
 
-	for _, ticket := range(user_tickets.Data) {
+	for _, ticket := range user_tickets.Data {
 		event := ticket.EventTicket.Event
 		events = append(events, event)
 	}
@@ -177,6 +178,15 @@ func GetEventHistory(c *fiber.Ctx) error {
 
 	return utils.PaginatedSuccessResponse(c, user_tickets, "success")
 
-	
+}
 
+func EventTickets(c *fiber.Ctx) error {
+
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	entity := c.Get("Entity")
+	user_id := authenticated_user["id"].(string)
+	filters := c.Locals("filters").(map[string]interface{})
+	filters["event__id"] = c.Params("id")
+
+	return ticket_utils.GetEventTickets(user_id, entity, c)
 }

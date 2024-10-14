@@ -152,7 +152,6 @@ func GetEventTickets(user_id string, entity string, c *fiber.Ctx) error {
 
 func GetUserTickets(user_id string, entity string, c *fiber.Ctx) error {
 	db := initialisers.ConnectDb().Db
-	// user_tickets := []models.UserTicket{}
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	privilege := authenticated_user["privilege"].(string)
 
