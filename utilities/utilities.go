@@ -22,6 +22,7 @@ func GetEventOrganiser(organiser_id string, reference string, is_business bool) 
 		organiser_details["is_business"] = true
 		organiser_details["id"] = organiser_id
 		organiser_details["business_user"] = organiser_business[0].UserId.String()
+		organiser_details["business_reference"] = organiser_business[0].Reference
 	} else {
 		err := db.Model(&models.Xuser{}).First(&organiser_user, "id = ?", organiser_id).Error
 		if err != nil {
@@ -31,6 +32,7 @@ func GetEventOrganiser(organiser_id string, reference string, is_business bool) 
 		organiser_details["is_business"] = false
 		organiser_details["id"] = organiser_id
 		organiser_details["business_user"] = ""
+		organiser_details["business_reference"] = ""
 	}
 
 	return organiser_details, nil
