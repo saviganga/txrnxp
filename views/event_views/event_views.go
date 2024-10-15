@@ -185,8 +185,6 @@ func EventTickets(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	entity := c.Get("Entity")
 	user_id := authenticated_user["id"].(string)
-	filters := c.Locals("filters").(map[string]interface{})
-	filters["event__id"] = c.Params("id")
 
 	return ticket_utils.GetEventTickets(user_id, entity, c)
 }
