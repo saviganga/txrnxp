@@ -81,7 +81,7 @@ This endpoint allows users to retrieve their user account information.
 This endpoint allows users to update their user account information.
 
 - **Endpoint**: `{{BASE_URL}}/api/v1/users/<user_id>`
-- **Method**: GET
+- **Method**: PATCH
 - **Authorization**: true
 
 **Request Body:**
@@ -176,3 +176,79 @@ This endpoint allows users to transfer funds between wallets.
     "Authorization": "JWT {{jwt_token}}"
 }
 ```
+
+### Business
+
+
+#### 1. Create Business
+This endpoint allows users to create businesses.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/business/`
+- **Method**: POST
+
+**Request Body:**
+```json
+{
+    "name": "ganga2-1"
+}
+```
+
+**Request Headers:**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+#### 2. Get Businesses
+This endpoint allows users to view their businesses.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/business/`
+- **Method**: GET
+- **Authorization**: true
+
+**Request Headers:**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+
+#### 3. Get Businesses
+This endpoint allows users to view their business.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/business/<business_id>`
+- **Method**: GET
+- **Authorization**: true
+
+**Request Headers:**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+
+#### 4. Update Businesses
+This endpoint allows users to update their business.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/business/<business_id>`
+- **Method**: PATCH
+- **Authorization**: true
+
+
+**Request Body:**
+```json
+{
+    "name": "ganga2-1"
+}
+```
+
+**Request Headers:**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
