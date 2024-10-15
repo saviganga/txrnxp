@@ -441,7 +441,53 @@ This endpoint allows users to view events they attended/purchased tickets for. T
 ```
 
 
-#### 5. Get Event Tickets
+#### 5. Create Event Ticket
+This endpoint allows users to create event tickets.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/tickets/events/`
+- **Method**: POST
+
+**Request Body:**
+```json
+{
+   "event_id": "d83c6d7d-039e-499a-b9be-75d243955bbb",
+    "is_paid": true,
+    "is_limited_stock": true,
+    "price": "750",
+    "perks": {
+        "food": false,
+        "drinks": true,
+        "vip": false
+    },
+    "stock_number": 15,
+    "is_invite_only": false,
+    "ticket_type": "SINGLE",
+    "description": "event ticket",
+    "purchase_limit": 3,
+    "is_limited_stock": true,
+    "stock_number": 100
+}
+```
+
+**Request Headers: Individual**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+**Request Headers: Business**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}",
+    "Entity": "BUSINESS",
+    "Business": "<business_reference>"
+}
+```
+
+
+
+#### 6. Get Event Tickets
 This endpoint allows users to view event tickets. Only event organisers have access to the feature
 
 - **Endpoint**: `{{BASE_URL}}/api/v1/events/<event_id>/tickets`
@@ -465,7 +511,7 @@ This endpoint allows users to view event tickets. Only event organisers have acc
 ```
 
 
-#### 6. Get Event Ticket by Id
+#### 7. Get Event Ticket by Id
 This endpoint allows users to view event tickets. Only event organisers have access to the feature
 
 - **Endpoint**: `{{BASE_URL}}/api/v1/tickets/events/<event_ticket_id>`
@@ -485,6 +531,53 @@ This endpoint allows users to view event tickets. Only event organisers have acc
     "Authorization": "JWT {{jwt_token}}",
     "Entity": "BUSINESS",
     "Business": "<business_reference>"
+}
+```
+
+
+### User Tickets
+
+
+#### 1. Buy Ticket
+This endpoint allows users to buy event tickets
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/tickets/buy/wallet`
+- **Method**: POST
+
+**Request Body:**
+```json
+{
+   "event_ticket_id": "317ffc72-68ba-4a88-88e2-c78413246de0",
+    "count": 2
+}
+```
+
+**Request Headers:**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+#### 2. Transfer Ticket
+This endpoint allows users to transfer event tickets
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/tickets/transfer`
+- **Method**: POST
+
+**Request Body:**
+```json
+{
+   "ticket_reference": "<ticket_reference>",
+   "receiver_email": "nigga@niggas.com",
+    "count": 2
+}
+```
+
+**Request Headers:**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
 }
 ```
 
