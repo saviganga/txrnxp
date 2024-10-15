@@ -762,10 +762,14 @@ func ValidateUserTicket(c *fiber.Ctx) (bool, string) {
 	}
 
 	if userTicket.EventTicket.Event.IsBusiness {
-		db.Model(&models.Business{}).First(&business, "business.user_id = ?", authenticated_user["id"])
-		organiser_id := business.Id
-		if organiser_id != organiser_id_uuid && strings.ToUpper(privilege) != "ADMIN" {
-			return false, "Oops! you do not have permission to perform this action"
+		entity := c.Get("Entity")
+		business_reference := c.Get("Business")
+		if business_reference == "" || strings.ToUpper(entity) != "BUSINESS" {
+			return false, "oops! this is a business event, please pass in the business reference"
+		}
+		err := db.Model(&models.Business{}).First(&business, "reference = ? AND user_id = ?", business_reference, authenticated_user["id"]).Error
+		if err != nil {
+			return false, "Oops! You do not have permission to perform this action"
 		}
 	} else {
 		db.Model(&models.Xuser{}).First(&user, "id = ?", authenticated_user["id"])
