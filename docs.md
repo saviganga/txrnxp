@@ -274,3 +274,217 @@ This endpoint allows businesses to upload a profile picture.
 }
 ```
 
+
+
+
+### Events
+
+
+#### 1. Create Event
+This endpoint allows users to create events. Events can be created by individuals or businesses
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/events/`
+- **Method**: POST
+
+**Request Body:**
+```json
+{
+   "name": "lagos nights",
+    "category": "PARTY",
+    "duration": "recurring",
+    "event_type": "LIVE",
+    "address": "victoria island lagos",
+    "description": "beach party",
+    "start_time": "2024-11-06T13:38:43.827061Z",
+    "end_time": "2024-12-06T13:38:43.827061Z"
+}
+```
+
+**Request Headers: Individual**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+
+**Request Headers: Business**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}",
+    "Entity": "BUSINESS",
+    "Business": "<business_reference>"
+}
+```
+
+
+#### 2. Upload Event Image
+This endpoint allows users to upload images for their created events.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/events/<event_id>/upload-image`
+- **Method**: POST
+- **Authorization**: true
+
+
+**Request Body:**
+```json
+{
+    "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/"
+}
+```
+
+**Request Headers: Individual**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+
+**Request Headers: Business**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}",
+    "Entity": "BUSINESS",
+    "Business": "<business_reference>"
+}
+```
+
+
+
+#### 3. Get My Events
+This endpoint allows users to view their created events.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/events/my-events`
+- **Method**: GET
+- **Authorization**: true
+
+**Request Headers: Individual**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+**Request Headers: Business**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}",
+    "Entity": "BUSINESS",
+    "Business": "<business_reference>"
+}
+```
+
+
+#### 4. Update My Event
+This endpoint allows users to update their created events.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/events/<event_id>`
+- **Method**: PATCH
+- **Authorization**: true
+
+
+**Request Body:**
+```json
+{
+    "name": "lagos vibez"
+}
+```
+
+
+**Request Headers: Individual**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+**Request Headers: Business**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}",
+    "Entity": "BUSINESS",
+    "Business": "<business_reference>"
+}
+```
+
+
+#### 3. Get Upcoming Events
+This endpoint allows users to view upcoming events.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/events`
+- **Method**: GET
+- **Authorization**: false
+
+
+#### 4. Get Event Detail
+This endpoint allows users to view event details.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/events/<event_reference>`
+- **Method**: GET
+- **Authorization**: false
+
+
+#### 4. Get Event History
+This endpoint allows users to view events they attended/purchased tickets for. This feature is not available for businesses
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/events/history`
+- **Method**: GET
+- **Authorization**: true
+
+**Request Headers: Individual**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}",
+    "Entity": "USER"
+}
+```
+
+
+#### 5. Get Event Tickets
+This endpoint allows users to view event tickets. Only event organisers have access to the feature
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/events/<event_id>/tickets`
+- **Method**: GET
+- **Authorization**: true
+
+**Request Headers: Individual**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}",
+}
+```
+
+**Request Headers: Business**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}",
+    "Entity": "BUSINESS",
+    "Business": "<business_reference>"
+}
+```
+
+
+#### 6. Get Event Ticket by Id
+This endpoint allows users to view event tickets. Only event organisers have access to the feature
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/tickets/events/<event_ticket_id>`
+- **Method**: GET
+- **Authorization**: true
+
+**Request Headers: Individual**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}",
+}
+```
+
+**Request Headers: Business**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}",
+    "Entity": "BUSINESS",
+    "Business": "<business_reference>"
+}
+```
+

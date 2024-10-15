@@ -13,9 +13,9 @@ import (
 	"txrnxp/serializers/ticket_serializers"
 	"txrnxp/utils"
 	"txrnxp/utils/admin_utils"
+	"txrnxp/utils/business_utils"
 	"txrnxp/utils/db_utils"
 	"txrnxp/utils/wallets_utils"
-	"txrnxp/utils/business_utils"
 
 	"image/png"
 
@@ -23,6 +23,7 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/skip2/go-qrcode"
+
 )
 
 func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSerializer, error) {
@@ -87,6 +88,7 @@ func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSe
 	serialized_event_ticket := event_serializers.SerializeCreateEventTicket(*eventTicket)
 
 	return &serialized_event_ticket, nil
+
 }
 
 func GetEventTickets(user_id string, entity string, c *fiber.Ctx) error {
@@ -129,14 +131,13 @@ func GetEventTickets(user_id string, entity string, c *fiber.Ctx) error {
 			if err != nil {
 				return utils.BadRequestResponse(c, "Oops! This user is not a business")
 			}
-			business_id := businesses[0].Id.String()
 
 			// validate the organiser id
 			if businesses[0].UserId.String() != authenticated_user["id"] {
 				return utils.BadRequestResponse(c, "this feature is only available for event organisers")
 			}
 
-			filters["event__organiser_id"] = business_id
+			filters["event__id"] = c.Params("id")
 
 			event_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
 			if err != nil {
@@ -190,7 +191,7 @@ func GetEventTicketById(c *fiber.Ctx) (*event_serializers.ReadEventTicketSeriali
 
 		err := db.Find(&businesses, "reference = ?", business_reference).Error
 		if err != nil {
-			return nil, errors.New( "oops! this user is not a business")
+			return nil, errors.New("oops! this user is not a business")
 		}
 		business_id := businesses[0].Id.String()
 
@@ -225,7 +226,7 @@ func GetEventTicketById(c *fiber.Ctx) (*event_serializers.ReadEventTicketSeriali
 			if result.Error != nil {
 				return nil, result.Error
 			}
-			
+
 			if event_ticket.Event.OrganiserId != user_id {
 				return nil, errors.New("oops! you do not have permission to view this resource")
 			}
@@ -242,7 +243,7 @@ func GetEventTicketById(c *fiber.Ctx) (*event_serializers.ReadEventTicketSeriali
 			}
 
 			if event_ticket.Event.IsBusiness {
-				return nil, errors.New("oops! you do not have permission to view this resource") 
+				return nil, errors.New("oops! you do not have permission to view this resource")
 			}
 
 		}
@@ -253,8 +254,6 @@ func GetEventTicketById(c *fiber.Ctx) (*event_serializers.ReadEventTicketSeriali
 	return &serialized_event_ticket, nil
 
 }
-
-
 
 func GetUserTickets(user_id string, entity string, c *fiber.Ctx) error {
 	db := initialisers.ConnectDb().Db
