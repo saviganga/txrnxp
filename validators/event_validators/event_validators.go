@@ -27,10 +27,15 @@ func ValidateEventOrganiser(c *fiber.Ctx) error {
 	}
 
 	if event.IsBusiness {
-		err := db.Model(&models.Business{}).First(&organiser_business, "id = ?", event.OrganiserId).Error
+		business_reference := c.Get("Business")
+		if business_reference == "" {
+			return utils.BadRequestResponse(c, "oops! this is a business event, please pass in the business reference")
+		}
+		err := db.Model(&models.Business{}).Find(&organiser_business, "reference = ?", business_reference).Error
 		if err != nil {
 			return utils.BadRequestResponse(c, fmt.Sprintf("oops! unable to fetch events - organiser: %s", event.Reference))
 		}
+		// validate the organiser id
 		if organiser_business[0].UserId.String() != authenticated_user["id"] {
 			return utils.BadRequestResponse(c, "this feature is only available for event organisers")
 		}

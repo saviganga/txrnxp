@@ -31,6 +31,15 @@ func GetEventTickets(c *fiber.Ctx) error {
 
 }
 
+func GetEventTicketById(c *fiber.Ctx) error {
+	event_ticket, err := ticket_utils.GetEventTicketById(c)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+	return utils.SuccessResponse(c, event_ticket, "Successfully fetched event ticket")
+
+}
+
 func GetUserTickets(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	entity := c.Get("Entity")
@@ -40,7 +49,6 @@ func GetUserTickets(c *fiber.Ctx) error {
 	user_id := authenticated_user["id"].(string)
 
 	return ticket_utils.GetUserTickets(user_id, entity, c)
-
 
 }
 
@@ -52,7 +60,6 @@ func GetUserTicketByReference(c *fiber.Ctx) error {
 	}
 	return utils.SuccessResponse(c, event, "Successfully fetched user ticket")
 }
-
 
 func CreateUserTicket(c *fiber.Ctx) error {
 	user_ticket, err := ticket_utils.CreateUserTicket(c)

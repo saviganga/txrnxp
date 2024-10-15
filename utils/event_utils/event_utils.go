@@ -11,6 +11,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
+
 )
 
 func CreateEvent(c *fiber.Ctx) (*event_serializers.ReadCreateEventSerializer, error) {
@@ -29,8 +30,12 @@ func CreateEvent(c *fiber.Ctx) (*event_serializers.ReadCreateEventSerializer, er
 
 	// improve this guy to be more specific on the user business
 	if strings.ToUpper(entity) == "BUSINESS" {
+		business_reference := c.Get("Business")
+		if business_reference == "" {
+			return nil, errors.New("oops! please pass in the business reference")
+		}
 		businesses := []models.Business{}
-		err := db.First(&businesses, "user_id = ?", authenticated_user["id"]).Error
+		err := db.Find(&businesses, "user_id = ? AND reference = ?", authenticated_user["id"].(string), business_reference).Error
 		if err != nil {
 			return nil, errors.New("oops! this user is not a business")
 		}
@@ -62,6 +67,7 @@ func CreateEvent(c *fiber.Ctx) (*event_serializers.ReadCreateEventSerializer, er
 	}
 
 	return serialized_event, nil
+
 }
 
 func GetEventByReference(c *fiber.Ctx) (*event_serializers.EventDetailSerializer, error) {
@@ -144,7 +150,6 @@ func UpdateEvent(c *fiber.Ctx) error {
 	}
 
 	return utils.SuccessResponse(c, serialized_event, "success")
-
 
 }
 

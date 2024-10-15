@@ -5,6 +5,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -118,7 +119,10 @@ func (r *GenericDBStruct[T]) GetPagedAndFiltered(limit, page int, filters map[st
 	for key, value := range filters {
 		normalizedKey := strings.Replace(key, "__", ".", -1)
 		parts := strings.Split(normalizedKey, ".")
-		if isStringField(parts[len(parts)-1]) {
+		if parts[len(parts)-1] == "start_time" {
+			now := time.Now()
+			query = query.Where(fmt.Sprintf("%s >= ?", normalizedKey), now)
+		} else if isStringField(parts[len(parts)-1]) {
 			query = query.Where(fmt.Sprintf("LOWER(%s) LIKE ?", normalizedKey), fmt.Sprintf("%%%s%%", value))
 		} else {
 			query = query.Where(fmt.Sprintf("%s = ?", normalizedKey), fmt.Sprintf("%s", value))
