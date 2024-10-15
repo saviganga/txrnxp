@@ -104,7 +104,7 @@ This endpoint allows users to update their user account information.
 This endpoint allows users to upload a profile picture.
 
 - **Endpoint**: `{{BASE_URL}}/api/v1/users/<user_id>/upload-image`
-- **Method**: GET
+- **Method**: POST
 - **Authorization**: true
 
 **Request Body:**
@@ -242,6 +242,28 @@ This endpoint allows users to update their business.
 ```json
 {
     "name": "ganga2-1"
+}
+```
+
+**Request Headers:**
+```json
+{
+    "Authorization": "JWT {{jwt_token}}"
+}
+```
+
+
+#### 5. Upload business image
+This endpoint allows businesses to upload a profile picture.
+
+- **Endpoint**: `{{BASE_URL}}/api/v1/businesses/<business_id>/upload-image`
+- **Method**: POST
+- **Authorization**: true
+
+**Request Body:**
+```json
+{
+    "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/"
 }
 ```
 
