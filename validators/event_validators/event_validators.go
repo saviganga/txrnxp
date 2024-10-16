@@ -2,10 +2,11 @@ package event_validators
 
 import (
 	"fmt"
+	"strings"
 	"txrnxp/initialisers"
 	"txrnxp/models"
-	"txrnxp/utils"
 	"txrnxp/serializers/event_serializers"
+	"txrnxp/utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
@@ -37,9 +38,17 @@ func ValidateEventOrganiser(c *fiber.Ctx) error {
 		}
 		// validate the organiser id
 		if organiser_business[0].UserId.String() != authenticated_user["id"] {
+			return utils.BadRequestResponse(c, "you are not the owner of this bsiness")
+		}
+		if organiser_business[0].Id.String() != event.OrganiserId {
 			return utils.BadRequestResponse(c, "this feature is only available for event organisers")
 		}
+
+		c.Locals("organiser_id", organiser_business[0].Id.String())
 	} else {
+		if strings.ToUpper(c.Get("Entity")) == "BUSINESS" || strings.ToUpper(c.Get("Entity")) != "" {
+			return utils.BadRequestResponse(c, "oops! this is not a business event")
+		}
 		err := db.Model(&models.Xuser{}).First(&organiser_user, "id = ?", event.OrganiserId).Error
 		if err != nil {
 			return utils.BadRequestResponse(c, fmt.Sprintf("oops! unable to fetch events - organiser: %s", event.Reference))
@@ -47,6 +56,7 @@ func ValidateEventOrganiser(c *fiber.Ctx) error {
 		if organiser_user[0].Id.String() != authenticated_user["id"] {
 			return utils.BadRequestResponse(c, "this feature is only available for event organisers")
 		}
+		c.Locals("organiser_id", organiser_user[0].Id.String())
 
 	}
 
