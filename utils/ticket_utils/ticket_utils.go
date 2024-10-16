@@ -23,7 +23,6 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/skip2/go-qrcode"
-
 )
 
 func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSerializer, error) {
@@ -290,6 +289,85 @@ func GetUserTickets(user_id string, entity string, c *fiber.Ctx) error {
 	} else {
 
 		filters["u__id"] = user_id
+
+		user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+		if err != nil {
+			return utils.BadRequestResponse(c, "Unable to get event tickets")
+		}
+
+		serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets.Data)
+		if err != nil {
+			return utils.BadRequestResponse(c, err.Error())
+		}
+		user_tickets.SerializedData = serialized_user_tickets
+		user_tickets.Status = "Success"
+		user_tickets.Message = "Successfully fetched event tickets"
+		user_tickets.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, user_tickets, "success")
+
+	}
+
+}
+
+
+func GetEventAttendees(user_id string, entity string, c *fiber.Ctx) error {
+	db := initialisers.ConnectDb().Db
+	authenticated_user := c.Locals("user").(jwt.MapClaims)
+	privilege := authenticated_user["privilege"].(string)
+
+	repo := utils.NewGenericDB[models.UserTicket](db)
+
+	limit := c.Locals("size").(int)
+	page := c.Locals("page").(int)
+	joins := []string{"LEFT JOIN event_tickets as event_ticket ON user_tickets.event_ticket_id = event_ticket.id", "LEFT JOIN xusers as u ON user_tickets.user_id = u.id", "LEFT JOIN events as event ON user_tickets.event_id = event.id"}
+	preloads := []string{"EventTicket.Event", "User", "Event"}
+	filters := c.Locals("filters").(map[string]interface{})
+
+	if strings.ToUpper(privilege) == "ADMIN" {
+		user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+		if err != nil {
+			return utils.BadRequestResponse(c, "Unable to get event tickets")
+		}
+
+		serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets.Data)
+		if err != nil {
+			return utils.BadRequestResponse(c, err.Error())
+		}
+		user_tickets.SerializedData = serialized_user_tickets
+		user_tickets.Status = "Success"
+		user_tickets.Message = "Successfully fetched event tickets"
+		user_tickets.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, user_tickets, "success")
+	}
+
+	if strings.ToUpper(entity) == "BUSINESS" {
+		business := models.Business{}
+		entity := c.Get("Entity")
+		business_reference := c.Get("Business")
+		if business_reference == "" || strings.ToUpper(entity) != "BUSINESS" {
+			return utils.BadRequestResponse(c, "this is a business event, please pass in the business header")
+		}
+		err := db.Model(&models.Business{}).First(&business, "reference = ? AND user_id = ?", business_reference, authenticated_user["id"]).Error
+		if err != nil {
+			return utils.BadRequestResponse(c, "you do not have permission to perform this action")
+		}
+		user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+		if err != nil {
+			return utils.BadRequestResponse(c, "Unable to get event tickets")
+		}
+
+		serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets.Data)
+		if err != nil {
+			return utils.BadRequestResponse(c, err.Error())
+		}
+		user_tickets.SerializedData = serialized_user_tickets
+		user_tickets.Status = "Success"
+		user_tickets.Message = "Successfully fetched event tickets"
+		user_tickets.Type = "OK"
+		return utils.PaginatedSuccessResponse(c, user_tickets, "success")
+	} else {
+
+		// filters["u__id"] = user_id
 
 		user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
 		if err != nil {

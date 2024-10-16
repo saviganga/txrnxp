@@ -62,6 +62,16 @@ func Routes(app *fiber.App) {
 		}),
 		event_views.EventTickets,
 	)
+	routes.Get(
+		":id/attendees/",
+		auth_utils.ValidateAuth,
+		event_validators.ValidateEventOrganiser,
+		utils.ValidateRequestLimitAndPage,
+		utils.ValidateRequestFilters(func() string {
+			return "user_ticket"
+		}),
+		event_views.UserTickets,
+	)
 	routes.Post(":id/upload-image/", auth_utils.ValidateAuth, event_validators.ValidateEventOrganiser, event_views.UploadEventImage)
 
 	_ = routes
