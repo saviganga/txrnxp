@@ -7,6 +7,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type ChangePasswordSerializer struct {
+	OldPassword	string `json:"old_password" validate:"required"`
+	NewPassword	string `json:"new_password" validate:"required"`
+	ConfirmPassword	string `json:"confirm_password" validate:"required"`
+}
+
 type UserSerializer struct {
 	Id          uuid.UUID `json:"id" validate:"required"`
 	Email       string    `json:"email" validate:"required"`

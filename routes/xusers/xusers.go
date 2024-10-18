@@ -20,6 +20,7 @@ func Routes(app *fiber.App) {
 	routes := app.Group(pathPrefix, logger.New())
 
 	routes.Post("", xusers.CreateUsers)
+	routes.Post("change-password/", auth_utils.ValidateAuth, xusers.ChangePassword)
 	routes.Get(
 		"",
 		auth_utils.ValidateAuth,
