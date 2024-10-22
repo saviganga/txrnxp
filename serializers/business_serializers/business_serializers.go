@@ -16,6 +16,15 @@ type UpdateBusinessSerializer struct {
 	Name string `json:"name"`
 }
 
+type CreateBusinessMemberSerializer struct {
+	Email       string `json:"email"`
+	FirstName   string `json:"first_name"`
+	LastName    string `json:"last_name"`
+	UserName    string `json:"username"`
+	PhoneNumber string `json:"phone"`
+	Password    string `json:"password"`
+}
+
 type ReadBusinessSerializer struct {
 	Id        uuid.UUID                       `json:"id" validate:"required"`
 	User      user_serializers.UserSerializer `json:"user" validate:"required"`

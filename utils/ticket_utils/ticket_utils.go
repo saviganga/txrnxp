@@ -131,11 +131,6 @@ func GetEventTickets(user_id string, entity string, c *fiber.Ctx) error {
 				return utils.BadRequestResponse(c, "Oops! This user is not a business")
 			}
 
-			// validate the organiser id
-			if businesses[0].UserId.String() != authenticated_user["id"] {
-				return utils.BadRequestResponse(c, "this feature is only available for event organisers")
-			}
-
 			filters["event__id"] = c.Params("id")
 
 			event_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)

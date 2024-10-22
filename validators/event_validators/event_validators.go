@@ -42,9 +42,6 @@ func ValidateEventOrganiser(c *fiber.Ctx) error {
 		if err != nil || business_member.Id == uuid.Nil {
 			return utils.BadRequestResponse(c, fmt.Sprintf("oops! unable to fetch events - organiser member: %s", event.Reference))
 		}
-		if organiser_business[0].Id.String() != event.OrganiserId {
-			return utils.BadRequestResponse(c, "this feature is only available for event organisers")
-		}
 
 		c.Locals("organiser_id", organiser_business[0].Id.String())
 	} else {

@@ -82,6 +82,11 @@ func GetBusinessById(c *fiber.Ctx) error {
 }
 
 
+func CreateBusinessMember(c *fiber.Ctx) error {
+	return business_utils.CreateBusinessMember(c)
+}
+
+
 func UpdateBusiness(c *fiber.Ctx) error {
 	return business_utils.UpdateBusiness(c)
 }
