@@ -41,6 +41,12 @@ func CreateBusiness(c *fiber.Ctx) (*business_serializers.ReadCreateBusinessSeria
 		return nil, errors.New(err.Error())
 	}
 
+	business_member_query := models.BusinessMember{UserId: business.UserId, BusinessId: business.Id}
+	dbError := db.Create(&business_member_query).Error
+	if dbError != nil {
+		return nil, errors.New("oops! error creating user wallet")
+	}
+
 	serialized_business, err := business_serializers.SerializeCreateBusiness(*business, c)
 	if err != nil {
 		return nil, errors.New(err.Error())
@@ -49,16 +55,15 @@ func CreateBusiness(c *fiber.Ctx) (*business_serializers.ReadCreateBusinessSeria
 	return serialized_business, nil
 }
 
-
 func GetBusinessById(c *fiber.Ctx) error {
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
 	db := initialisers.ConnectDb().Db
 	business := models.Business{}
 	privilege := authenticated_user["privilege"]
 	err := db.First(&business, "id = ?", c.Params("id")).Error
-		if err != nil {
-			return utils.BadRequestResponse(c, "Unable to get user")
-		}
+	if err != nil {
+		return utils.BadRequestResponse(c, "Unable to get user")
+	}
 	if privilege != "ADMIN" && authenticated_user["id"].(string) != business.UserId.String() {
 		return utils.BadRequestResponse(c, "You do not have permission to view this resource")
 	}
@@ -71,7 +76,6 @@ func GetBusinessById(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, serialized_business, "success")
 
 }
-
 
 func UpdateBusiness(c *fiber.Ctx) error {
 
@@ -96,7 +100,6 @@ func UpdateBusiness(c *fiber.Ctx) error {
 	}
 
 	return utils.SuccessResponse(c, serialized_business, "success")
-
 
 }
 
@@ -128,7 +131,6 @@ func UploadBusinessImage(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, serialized_business, "Successfully uploaded business image")
 
 }
-
 
 func RemoveBusinessKeys(filters map[string]interface{}) {
 	for key := range filters {

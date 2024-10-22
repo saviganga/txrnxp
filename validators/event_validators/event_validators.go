@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 )
 
 func ValidateEventOrganiser(c *fiber.Ctx) error {
@@ -28,6 +29,7 @@ func ValidateEventOrganiser(c *fiber.Ctx) error {
 	}
 
 	if event.IsBusiness {
+		business_member := models.BusinessMember{}
 		business_reference := c.Get("Business")
 		if business_reference == "" {
 			return utils.BadRequestResponse(c, "oops! this is a business event, please pass in the business reference")
@@ -36,9 +38,9 @@ func ValidateEventOrganiser(c *fiber.Ctx) error {
 		if err != nil {
 			return utils.BadRequestResponse(c, fmt.Sprintf("oops! unable to fetch events - organiser: %s", event.Reference))
 		}
-		// validate the organiser id
-		if organiser_business[0].UserId.String() != authenticated_user["id"] {
-			return utils.BadRequestResponse(c, "you are not the owner of this bsiness")
+		err = db.Model(&models.BusinessMember{}).First(&business_member, "user_id = ? AND business_id = ?", authenticated_user["id"], organiser_business[0].Id.String()).Error
+		if err != nil || business_member.Id == uuid.Nil {
+			return utils.BadRequestResponse(c, fmt.Sprintf("oops! unable to fetch events - organiser member: %s", event.Reference))
 		}
 		if organiser_business[0].Id.String() != event.OrganiserId {
 			return utils.BadRequestResponse(c, "this feature is only available for event organisers")
