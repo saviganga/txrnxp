@@ -188,7 +188,35 @@ func CreateBusinessMember(c *fiber.Ctx) error {
 		}
 	}
 
-
 	return utils.CreatedResponse(c, user_request, "Successfully created business member")
+
+}
+
+func GetBusinessMembers(c *fiber.Ctx) error {
+
+	db := initialisers.ConnectDb().Db
+
+	businessMemberRepo := utils.NewGenericDB[models.BusinessMember](db)
+
+	filters := c.Locals("filters").(map[string]interface{})
+	filters["business__id"] = c.Params("id")
+	limit := c.Locals("size").(int)
+	page := c.Locals("page").(int)
+	joins := []string{"LEFT JOIN xusers AS u ON business_members.user_id = u.id", "LEFT JOIN businesses AS business on business_members.business_id = business.id "}
+	preloads := []string{"User", "Business"}
+	business_members, err := businessMemberRepo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
+	if err != nil {
+		return utils.BadRequestResponse(c, "Unable to get business members")
+	}
+	serialized_business_members, err := business_serializers.SerializeReadBusinessMembers(business_members.Data, c)
+	if err != nil {
+		return utils.BadRequestResponse(c, err.Error())
+	}
+
+	business_members.SerializedData = serialized_business_members
+	business_members.Status = "Success"
+	business_members.Message = "Successfully fetched business members"
+	business_members.Type = "OK"
+	return utils.PaginatedSuccessResponse(c, business_members, "success")
 
 }

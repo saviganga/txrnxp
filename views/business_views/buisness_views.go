@@ -39,39 +39,39 @@ func GetBusiness(c *fiber.Ctx) error {
 		limit := c.Locals("size").(int)
 		page := c.Locals("page").(int)
 		joins := []string{"LEFT JOIN xusers AS u ON businesses.user_id = u.id"}
-        preloads := []string{"User"}
+		preloads := []string{"User"}
 		businesses, err := businessRepo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
-        if err != nil {
-            return utils.BadRequestResponse(c, "Unable to get businesses")
-        }
+		if err != nil {
+			return utils.BadRequestResponse(c, "Unable to get businesses")
+		}
 		serialized_businesses, err := business_serializers.SerializeReadBusiness(businesses.Data, c)
 		if err != nil {
 			return utils.BadRequestResponse(c, err.Error())
 		}
 		businesses.SerializedData = serialized_businesses
-        businesses.Status = "Success"
-        businesses.Message = "Successfully fetched businesses"
-        businesses.Type = "OK"
+		businesses.Status = "Success"
+		businesses.Message = "Successfully fetched businesses"
+		businesses.Type = "OK"
 		return utils.PaginatedSuccessResponse(c, businesses, "success")
 	} else {
 		joins := []string{"LEFT JOIN xusers AS u ON businesses.user_id = u.id"}
-        preloads := []string{"User"}
+		preloads := []string{"User"}
 		limit := c.Locals("size").(int)
 		page := c.Locals("page").(int)
 		filters := make(map[string]interface{})
 		filters["u__id"] = authenticated_user["id"]
 		businesses, err := businessRepo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
-        if err != nil {
-            return utils.BadRequestResponse(c, "Unable to get businesses")
-        }
+		if err != nil {
+			return utils.BadRequestResponse(c, "Unable to get businesses")
+		}
 		serialized_businesses, err := business_serializers.SerializeReadBusiness(businesses.Data, c)
 		if err != nil {
 			return utils.BadRequestResponse(c, err.Error())
 		}
 		businesses.SerializedData = serialized_businesses
-        businesses.Status = "Success"
-        businesses.Message = "Successfully fetched businesses"
-        businesses.Type = "OK"
+		businesses.Status = "Success"
+		businesses.Message = "Successfully fetched businesses"
+		businesses.Type = "OK"
 		return utils.PaginatedSuccessResponse(c, businesses, "success")
 	}
 
@@ -81,16 +81,18 @@ func GetBusinessById(c *fiber.Ctx) error {
 	return business_utils.GetBusinessById(c)
 }
 
-
-func CreateBusinessMember(c *fiber.Ctx) error {
-	return business_utils.CreateBusinessMember(c)
-}
-
-
 func UpdateBusiness(c *fiber.Ctx) error {
 	return business_utils.UpdateBusiness(c)
 }
 
 func UploadBusinessImage(c *fiber.Ctx) error {
 	return business_utils.UploadBusinessImage(c)
+}
+
+func CreateBusinessMember(c *fiber.Ctx) error {
+	return business_utils.CreateBusinessMember(c)
+}
+
+func GetBusinessMembers(c *fiber.Ctx) error {
+	return business_utils.GetBusinessMembers(c)
 }

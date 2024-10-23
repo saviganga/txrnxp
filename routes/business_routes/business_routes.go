@@ -42,5 +42,15 @@ func Routes(app *fiber.App) {
 		business_validators.ValidateBusinessMember,
 		business_views.CreateBusinessMember,
 	)
+	routes.Get(
+		":id/members",
+		auth_utils.ValidateAuth,
+		business_validators.ValidateBusinessMember,
+		utils.ValidateRequestLimitAndPage,
+		utils.ValidateRequestFilters(func() string {
+			return "business_members"
+		}),
+		business_views.GetBusinessMembers,
+	)
 	_ = routes
 }
