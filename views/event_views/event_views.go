@@ -1,6 +1,7 @@
 package event_views
 
 import (
+	"fmt"
 	"strings"
 	"time"
 	"txrnxp/initialisers"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 )
 
 func GetEvents(c *fiber.Ctx) error {
@@ -61,15 +63,21 @@ func GetMyEvents(c *fiber.Ctx) error {
 			return utils.BadRequestResponse(c, "oops! please pass in the business reference")
 		}
 		business := models.Business{}
+		business_member := models.BusinessMember{}
 		err := db.First(&business, "reference = ?", business_reference).Error
 		if err != nil {
 			return utils.BadRequestResponse(c, "oops! this business does not exist")
 		}
 
-		// validate the organiser id
-		if business.UserId.String() != authenticated_user["id"].(string) {
-			return utils.BadRequestResponse(c, "this user does not own this business")
+		err = db.Model(&models.BusinessMember{}).First(&business_member, "user_id = ? AND business_id = ?", authenticated_user["id"], business.Id.String()).Error
+		if err != nil || business_member.Id == uuid.Nil {
+			return utils.BadRequestResponse(c, fmt.Sprintf("oops! unable to fetch business member - business: %s", business_reference))
 		}
+
+		// // validate the organiser id
+		// if business.UserId.String() != authenticated_user["id"].(string) {
+		// 	return utils.BadRequestResponse(c, "this user does not own this business")
+		// }
 
 		filters["organiser_id"] = business.Id.String()
 
@@ -188,8 +196,6 @@ func EventTickets(c *fiber.Ctx) error {
 
 	return ticket_utils.GetEventTickets(user_id, entity, c)
 }
-
-
 
 func UserTickets(c *fiber.Ctx) error {
 

@@ -53,6 +53,7 @@ func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSe
 	// improve this guy to be more specific on the user business
 	if strings.ToUpper(entity) == "BUSINESS" {
 		businesses := []models.Business{}
+		business_member := models.BusinessMember{}
 		business_reference := c.Get("Business")
 		if business_reference == "" {
 			return nil, errors.New("oops! this is a business event, please pass in the business reference")
@@ -62,12 +63,18 @@ func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSe
 			return nil, errors.New("oops! you are not the event organiser")
 		}
 
-		// validate the organiser id
-		if businesses[0].UserId.String() != authenticated_user["id"] {
-			return nil, errors.New("oops! you are not the business owner")
+		business_id := businesses[0].Id.String()
+
+		err = db.Model(&models.BusinessMember{}).First(&business_member, "user_id = ? AND business_id = ?", authenticated_user["id"], business_id).Error
+		if err != nil || business_member.Id == uuid.Nil {
+			return nil, errors.New("oop! this user is not a business member")
 		}
 
-		business_id := businesses[0].Id.String()
+		// // validate the organiser id
+		// if businesses[0].UserId.String() != authenticated_user["id"] {
+		// 	return nil, errors.New("oops! you are not the business owner")
+		// }
+
 		if event[0].OrganiserId != business_id {
 			return nil, errors.New("oops! you are not the event organiser")
 		}
@@ -182,6 +189,7 @@ func GetEventTicketById(c *fiber.Ctx) (*event_serializers.ReadEventTicketSeriali
 			return nil, errors.New("oops! this is a business event, please pass in the business reference")
 		}
 		businesses := []models.Business{}
+		business_member := models.BusinessMember{}
 
 		err := db.Find(&businesses, "reference = ?", business_reference).Error
 		if err != nil {
@@ -189,10 +197,15 @@ func GetEventTicketById(c *fiber.Ctx) (*event_serializers.ReadEventTicketSeriali
 		}
 		business_id := businesses[0].Id.String()
 
-		// validate the organiser id
-		if businesses[0].UserId.String() != authenticated_user["id"] {
-			return nil, errors.New("oops! this user is not the business owner")
+		err = db.Model(&models.BusinessMember{}).First(&business_member, "user_id = ? AND business_id = ?", authenticated_user["id"], business_id).Error
+		if err != nil || business_member.Id == uuid.Nil {
+			return nil, errors.New("oop! this user is not a business member")
 		}
+
+		// // validate the organiser id
+		// if businesses[0].UserId.String() != authenticated_user["id"] {
+		// 	return nil, errors.New("oops! this user is not the business owner")
+		// }
 
 		result := db.Model(&models.EventTicket{}).
 			Preload("Event").

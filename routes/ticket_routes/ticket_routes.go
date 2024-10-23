@@ -18,6 +18,7 @@ func Routes(app *fiber.App) {
 	pathPrefix := fmt.Sprintf("/api/%v/tickets/", version)
 	routes := app.Group(pathPrefix, logger.New())
 
+	// only for admins now
 	routes.Get(
 		"events/",
 		auth_utils.ValidateAuth,
@@ -27,6 +28,7 @@ func Routes(app *fiber.App) {
 		}),
 		ticket_views.GetEventTickets,
 	)
+
 	routes.Get(
 		"events/:id",
 		auth_utils.ValidateAuth,
