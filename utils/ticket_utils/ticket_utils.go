@@ -349,16 +349,16 @@ func GetEventAttendees(user_id string, entity string, c *fiber.Ctx) error {
 	}
 
 	if strings.ToUpper(entity) == "BUSINESS" {
-		business := models.Business{}
-		entity := c.Get("Entity")
-		business_reference := c.Get("Business")
-		if business_reference == "" || strings.ToUpper(entity) != "BUSINESS" {
-			return utils.BadRequestResponse(c, "this is a business event, please pass in the business header")
-		}
-		err := db.Model(&models.Business{}).First(&business, "reference = ? AND user_id = ?", business_reference, authenticated_user["id"]).Error
-		if err != nil {
-			return utils.BadRequestResponse(c, "you do not have permission to perform this action")
-		}
+		// business := models.Business{}
+		// entity := c.Get("Entity")
+		// business_reference := c.Get("Business")
+		// if business_reference == "" || strings.ToUpper(entity) != "BUSINESS" {
+		// 	return utils.BadRequestResponse(c, "this is a business event, please pass in the business header")
+		// }
+		// err := db.Model(&models.Business{}).First(&business, "reference = ? AND user_id = ?", business_reference, authenticated_user["id"]).Error
+		// if err != nil {
+		// 	return utils.BadRequestResponse(c, "you do not have permission to perform this action")
+		// }
 		user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
 		if err != nil {
 			return utils.BadRequestResponse(c, "Unable to get event tickets")
@@ -850,12 +850,17 @@ func ValidateUserTicket(c *fiber.Ctx) (bool, string) {
 	if userTicket.EventTicket.Event.IsBusiness {
 		entity := c.Get("Entity")
 		business_reference := c.Get("Business")
+		business_member := models.BusinessMember{}
 		if business_reference == "" || strings.ToUpper(entity) != "BUSINESS" {
 			return false, "oops! this is a business event, please pass in the business reference"
 		}
-		err := db.Model(&models.Business{}).First(&business, "reference = ? AND user_id = ?", business_reference, authenticated_user["id"]).Error
+		err := db.Model(&models.Business{}).Find(&business, "reference = ?", business_reference).Error
 		if err != nil {
-			return false, "Oops! You do not have permission to perform this action"
+			return false, fmt.Sprintf("oops! unable to fetch business - reference: %s", business_reference)
+		}
+		err = db.Model(&models.BusinessMember{}).First(&business_member, "user_id = ? AND business_id = ?", authenticated_user["id"], business.Id.String()).Error
+		if err != nil || business_member.Id == uuid.Nil {
+			return false, fmt.Sprintf("oops! unable to fetch business member - business: %s", business_reference)
 		}
 	} else {
 		db.Model(&models.Xuser{}).First(&user, "id = ?", authenticated_user["id"])
