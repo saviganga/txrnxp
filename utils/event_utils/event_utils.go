@@ -60,6 +60,13 @@ func CreateEvent(c *fiber.Ctx) (*event_serializers.ReadCreateEventSerializer, er
 	if err != nil {
 		return nil, errors.New("invalid request body")
 	}
+	address := map[string]interface{}{}
+	address["address"] = event.Address
+	address["longitude"] = ""
+	address["latitude"] = ""
+	address["city"] = ""
+	address["state"] = ""
+	event.Addresss = address
 	err = db.Create(&event).Error
 
 	if err != nil {
