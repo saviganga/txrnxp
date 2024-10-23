@@ -14,11 +14,9 @@ import (
 	"github.com/google/uuid"
 )
 
-
 type UpdateEventSerializer struct {
 	Name string `json:"name"`
 }
-
 
 type EventDetailSerializer struct {
 	EventId     uuid.UUID                                            `json:"id" validate:"required"`
@@ -30,6 +28,7 @@ type EventDetailSerializer struct {
 	EventType   string                                               `json:"type" validate:"required"`
 	Description string                                               `json:"description" validate:"required"`
 	Address     string                                               `json:"address" validate:"required"`
+	Addresss    map[string]interface{}                               `json:"addresss" validate:"required"`
 	Category    string                                               `json:"category" validate:"required"`
 	Duration    string                                               `json:"duration" validate:"required"`
 	Tickets     []ticket_serializers.EventTicketCustomuserSerializer `json:"tickets" validate:"required"`
@@ -49,6 +48,7 @@ type EventListSerializer struct {
 	EventType   string                 `json:"type" validate:"required"`
 	Description string                 `json:"description" validate:"required"`
 	Address     string                 `json:"address" validate:"required"`
+	Addresss    map[string]interface{} `json:"addresss" validate:"required"`
 	Category    string                 `json:"category" validate:"required"`
 	Duration    string                 `json:"duration" validate:"required"`
 	StartTime   time.Time              `json:"start_time" validate:"required"`
@@ -58,20 +58,21 @@ type EventListSerializer struct {
 }
 
 type ReadCreateEventSerializer struct {
-	EventId     uuid.UUID `json:"id" validate:"required"`
-	Reference   string    `json:"reference" validate:"required"`
-	IsBusiness  bool      `json:"is_business" validate:"required"`
-	Name        string    `json:"name" validate:"required"`
-	Image       string    `json:"image" validate:"required"`
-	EventType   string    `json:"type" validate:"required"`
-	Description string    `json:"description" validate:"required"`
-	Address     string    `json:"address" validate:"required"`
-	Category    string    `json:"category" validate:"required"`
-	Duration    string    `json:"duration" validate:"required"`
-	StartTime   time.Time `json:"start_time" validate:"required"`
-	EndTime     time.Time `json:"end_time" validate:"required"`
-	CreatedAt   time.Time `json:"created_at" validate:"required"`
-	UpdatedAt   time.Time `json:"updated_at" validate:"required"`
+	EventId     uuid.UUID              `json:"id" validate:"required"`
+	Reference   string                 `json:"reference" validate:"required"`
+	IsBusiness  bool                   `json:"is_business" validate:"required"`
+	Name        string                 `json:"name" validate:"required"`
+	Image       string                 `json:"image" validate:"required"`
+	EventType   string                 `json:"type" validate:"required"`
+	Description string                 `json:"description" validate:"required"`
+	Address     string                 `json:"address" validate:"required"`
+	Addresss    map[string]interface{} `json:"addresss" validate:"required"`
+	Category    string                 `json:"category" validate:"required"`
+	Duration    string                 `json:"duration" validate:"required"`
+	StartTime   time.Time              `json:"start_time" validate:"required"`
+	EndTime     time.Time              `json:"end_time" validate:"required"`
+	CreatedAt   time.Time              `json:"created_at" validate:"required"`
+	UpdatedAt   time.Time              `json:"updated_at" validate:"required"`
 }
 
 type ReadEventTicketSerializer struct {
@@ -179,6 +180,7 @@ func SerializeReadEventsList(events []models.Event, c *fiber.Ctx) ([]EventListSe
 		event_serializer.EventType = event.EventType
 		event_serializer.Description = event.Description
 		event_serializer.Address = event.Address
+		event_serializer.Addresss = event.Addresss
 		event_serializer.Category = event.Category
 		event_serializer.Duration = event.Duration
 		event_serializer.StartTime = event.StartTime
@@ -208,6 +210,7 @@ func SerializeReadUserTickets(user_tickets []models.UserTicket) ([]ReadUserTicke
 			EventType:   event.EventType,
 			Description: event.Description,
 			Address:     event.Address,
+			Addresss:     event.Addresss,
 			Category:    event.Category,
 			Duration:    event.Duration,
 			StartTime:   event.StartTime,
@@ -316,6 +319,7 @@ func SerializeGetEventByReference(c *fiber.Ctx, event_list []models.Event, event
 	event.EventType = event_list[0].EventType
 	event.Description = event_list[0].Description
 	event.Address = event_list[0].Address
+	event.Addresss = event_list[0].Addresss
 	event.Category = event_list[0].Category
 	event.Duration = event_list[0].Duration
 	event.StartTime = event_list[0].StartTime
@@ -352,6 +356,7 @@ func SerializeCreateEvent(event models.Event, c *fiber.Ctx) (*ReadCreateEventSer
 	serialized_event.EventType = event.EventType
 	serialized_event.Description = event.Description
 	serialized_event.Address = event.Address
+	serialized_event.Addresss = event.Addresss
 	serialized_event.Category = event.Category
 	serialized_event.Duration = event.Duration
 	serialized_event.StartTime = event.StartTime
@@ -401,6 +406,7 @@ func SerializeGetEventTickets(event_tickets []models.EventTicket) []ReadEventTic
 			EventType:   ticket_event.EventType,
 			Description: ticket_event.Description,
 			Address:     ticket_event.Address,
+			Addresss:     ticket_event.Addresss,
 			Category:    ticket_event.Category,
 			Duration:    ticket_event.Duration,
 			StartTime:   ticket_event.StartTime,
@@ -439,22 +445,23 @@ func SerializeGetEventTicket(ticket models.EventTicket) ReadEventTicketSerialize
 
 	// for _, ticket := range event_tickets {
 
-		ticket_event := ticket.Event
-		serialized_event := ReadCreateEventSerializer{
-			EventId:     ticket_event.Id,
-			Reference:   ticket_event.Reference,
-			IsBusiness:  ticket_event.IsBusiness,
-			Name:        ticket_event.Name,
-			EventType:   ticket_event.EventType,
-			Description: ticket_event.Description,
-			Address:     ticket_event.Address,
-			Category:    ticket_event.Category,
-			Duration:    ticket_event.Duration,
-			StartTime:   ticket_event.StartTime,
-			EndTime:     ticket_event.EndTime,
-			CreatedAt:   ticket_event.CreatedAt,
-			UpdatedAt:   ticket_event.UpdatedAt,
-		}
+	ticket_event := ticket.Event
+	serialized_event := ReadCreateEventSerializer{
+		EventId:     ticket_event.Id,
+		Reference:   ticket_event.Reference,
+		IsBusiness:  ticket_event.IsBusiness,
+		Name:        ticket_event.Name,
+		EventType:   ticket_event.EventType,
+		Description: ticket_event.Description,
+		Address:     ticket_event.Address,
+		Addresss:     ticket_event.Addresss,
+		Category:    ticket_event.Category,
+		Duration:    ticket_event.Duration,
+		StartTime:   ticket_event.StartTime,
+		EndTime:     ticket_event.EndTime,
+		CreatedAt:   ticket_event.CreatedAt,
+		UpdatedAt:   ticket_event.UpdatedAt,
+	}
 
 	serialized_event_ticket.Id = ticket.Id
 	serialized_event_ticket.Event = serialized_event
@@ -474,6 +481,4 @@ func SerializeGetEventTicket(ticket models.EventTicket) ReadEventTicketSerialize
 
 	return *serialized_event_ticket
 
-
-	}
-
+}
