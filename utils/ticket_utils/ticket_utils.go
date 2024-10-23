@@ -53,6 +53,7 @@ func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSe
 	// improve this guy to be more specific on the user business
 	if strings.ToUpper(entity) == "BUSINESS" {
 		businesses := []models.Business{}
+		business_member := models.BusinessMember{}
 		business_reference := c.Get("Business")
 		if business_reference == "" {
 			return nil, errors.New("oops! this is a business event, please pass in the business reference")
@@ -62,12 +63,13 @@ func CreateEventTicket(c *fiber.Ctx) (*event_serializers.ReadCreateEventTicketSe
 			return nil, errors.New("oops! you are not the event organiser")
 		}
 
-		// validate the organiser id
-		if businesses[0].UserId.String() != authenticated_user["id"] {
-			return nil, errors.New("oops! you are not the business owner")
+		business_id := businesses[0].Id.String()
+
+		err = db.Model(&models.BusinessMember{}).First(&business_member, "user_id = ? AND business_id = ?", authenticated_user["id"], business_id).Error
+		if err != nil || business_member.Id == uuid.Nil {
+			return nil, errors.New("oop! this user is not a business member")
 		}
 
-		business_id := businesses[0].Id.String()
 		if event[0].OrganiserId != business_id {
 			return nil, errors.New("oops! you are not the event organiser")
 		}
@@ -131,11 +133,6 @@ func GetEventTickets(user_id string, entity string, c *fiber.Ctx) error {
 				return utils.BadRequestResponse(c, "Oops! This user is not a business")
 			}
 
-			// validate the organiser id
-			if businesses[0].UserId.String() != authenticated_user["id"] {
-				return utils.BadRequestResponse(c, "this feature is only available for event organisers")
-			}
-
 			filters["event__id"] = c.Params("id")
 
 			event_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
@@ -187,6 +184,7 @@ func GetEventTicketById(c *fiber.Ctx) (*event_serializers.ReadEventTicketSeriali
 			return nil, errors.New("oops! this is a business event, please pass in the business reference")
 		}
 		businesses := []models.Business{}
+		business_member := models.BusinessMember{}
 
 		err := db.Find(&businesses, "reference = ?", business_reference).Error
 		if err != nil {
@@ -194,9 +192,9 @@ func GetEventTicketById(c *fiber.Ctx) (*event_serializers.ReadEventTicketSeriali
 		}
 		business_id := businesses[0].Id.String()
 
-		// validate the organiser id
-		if businesses[0].UserId.String() != authenticated_user["id"] {
-			return nil, errors.New("oops! this user is not the business owner")
+		err = db.Model(&models.BusinessMember{}).First(&business_member, "user_id = ? AND business_id = ?", authenticated_user["id"], business_id).Error
+		if err != nil || business_member.Id == uuid.Nil {
+			return nil, errors.New("oop! this user is not a business member")
 		}
 
 		result := db.Model(&models.EventTicket{}).
@@ -309,7 +307,6 @@ func GetUserTickets(user_id string, entity string, c *fiber.Ctx) error {
 
 }
 
-
 func GetEventAttendees(user_id string, entity string, c *fiber.Ctx) error {
 	db := initialisers.ConnectDb().Db
 	authenticated_user := c.Locals("user").(jwt.MapClaims)
@@ -341,16 +338,6 @@ func GetEventAttendees(user_id string, entity string, c *fiber.Ctx) error {
 	}
 
 	if strings.ToUpper(entity) == "BUSINESS" {
-		business := models.Business{}
-		entity := c.Get("Entity")
-		business_reference := c.Get("Business")
-		if business_reference == "" || strings.ToUpper(entity) != "BUSINESS" {
-			return utils.BadRequestResponse(c, "this is a business event, please pass in the business header")
-		}
-		err := db.Model(&models.Business{}).First(&business, "reference = ? AND user_id = ?", business_reference, authenticated_user["id"]).Error
-		if err != nil {
-			return utils.BadRequestResponse(c, "you do not have permission to perform this action")
-		}
 		user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
 		if err != nil {
 			return utils.BadRequestResponse(c, "Unable to get event tickets")
@@ -366,8 +353,6 @@ func GetEventAttendees(user_id string, entity string, c *fiber.Ctx) error {
 		user_tickets.Type = "OK"
 		return utils.PaginatedSuccessResponse(c, user_tickets, "success")
 	} else {
-
-		// filters["u__id"] = user_id
 
 		user_tickets, err := repo.GetPagedAndFiltered(limit, page, filters, preloads, joins)
 		if err != nil {
@@ -393,46 +378,16 @@ func GetUserTicketByReference(c *fiber.Ctx) (*event_serializers.ReadUserTicketSe
 	db := initialisers.ConnectDb().Db
 	user_tickets := []models.UserTicket{}
 	reference := c.Params("reference")
-	entity := c.Get("Entity")
-	authenticated_user := c.Locals("user").(jwt.MapClaims)
-	user_id := authenticated_user["id"].(string)
 
-	if strings.ToUpper(entity) == "BUSINESS" {
-		return nil, errors.New("oops! this feature is not available for businesses")
-	} else {
-		if strings.ToUpper(authenticated_user["privilege"].(string)) != "ADMIN" {
-			result := db.Model(&models.UserTicket{}).
-				Preload("EventTicket.Event").
-				Joins("User").
-				Where("user_tickets.reference = ?", reference).
-				Order("created_at desc").
-				First(&user_tickets)
+	result := db.Model(&models.UserTicket{}).
+		Preload("EventTicket.Event").
+		Joins("User").
+		Where("user_tickets.reference = ?", reference).
+		Order("created_at desc").
+		First(&user_tickets)
 
-			if result.Error != nil {
-				return nil, result.Error
-			}
-			user_id_uuid, err := utils.ConvertStringToUUID(user_id)
-			if err != nil {
-				return nil, err
-			}
-			if user_tickets[0].EventTicket.Event.OrganiserId != user_id && user_tickets[0].UserId != user_id_uuid {
-				return nil, errors.New("oops! you do not have permission to view this resource")
-			}
-		} else {
-
-			result := db.Model(&models.UserTicket{}).
-				Preload("EventTicket.Event").
-				Joins("User").
-				Where("user_tickets.reference = ?", reference).
-				Order("created_at desc").
-				First(&user_tickets)
-
-			if result.Error != nil {
-				return nil, result.Error
-			}
-
-		}
-
+	if result.Error != nil {
+		return nil, result.Error
 	}
 
 	serialized_user_tickets, err := event_serializers.SerializeReadUserTickets(user_tickets)
@@ -842,12 +797,17 @@ func ValidateUserTicket(c *fiber.Ctx) (bool, string) {
 	if userTicket.EventTicket.Event.IsBusiness {
 		entity := c.Get("Entity")
 		business_reference := c.Get("Business")
+		business_member := models.BusinessMember{}
 		if business_reference == "" || strings.ToUpper(entity) != "BUSINESS" {
 			return false, "oops! this is a business event, please pass in the business reference"
 		}
-		err := db.Model(&models.Business{}).First(&business, "reference = ? AND user_id = ?", business_reference, authenticated_user["id"]).Error
+		err := db.Model(&models.Business{}).Find(&business, "reference = ?", business_reference).Error
 		if err != nil {
-			return false, "Oops! You do not have permission to perform this action"
+			return false, fmt.Sprintf("oops! unable to fetch business - reference: %s", business_reference)
+		}
+		err = db.Model(&models.BusinessMember{}).Find(&business_member, "user_id = ? AND business_id = ?", authenticated_user["id"], business.Id.String()).Error
+		if err != nil || business_member.Id == uuid.Nil {
+			return false, fmt.Sprintf("oops! unable to fetch business member - business: %s", business_reference)
 		}
 	} else {
 		db.Model(&models.Xuser{}).First(&user, "id = ?", authenticated_user["id"])

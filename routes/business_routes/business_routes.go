@@ -30,11 +30,27 @@ func Routes(app *fiber.App) {
 	routes.Get(
 		":id/",
 		auth_utils.ValidateAuth,
+		business_validators.ValidateBusinessMember,
 		business_views.GetBusinessById,
 	)
 	routes.Patch(":id/", auth_utils.ValidateAuth, business_validators.ValidateUpdateBusinessRequestBody, business_views.UpdateBusiness)
 	routes.Post("", auth_utils.ValidateAuth, business_views.CreateBusiness)
 	routes.Post(":id/upload-image/", auth_utils.ValidateAuth, business_validators.ValidateBusinessOwner, business_views.UploadBusinessImage)
-
+	routes.Post(
+		":id/members",
+		auth_utils.ValidateAuth,
+		business_validators.ValidateBusinessMember,
+		business_views.CreateBusinessMember,
+	)
+	routes.Get(
+		":id/members",
+		auth_utils.ValidateAuth,
+		business_validators.ValidateBusinessMember,
+		utils.ValidateRequestLimitAndPage,
+		utils.ValidateRequestFilters(func() string {
+			return "business_members"
+		}),
+		business_views.GetBusinessMembers,
+	)
 	_ = routes
 }

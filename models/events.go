@@ -25,6 +25,7 @@ type Event struct {
 	Reference    string    `gorm:"type:varchar(50);unique" json:"reference"`
 	Country      string    `gorm:"type:varchar(50);default: NGA" json:"country"`
 	Description  string    `gorm:"type:varchar(50)" json:"description"`
+	Addresss	JSONBField `gorm:"type:jsonb;default: '{}'" json:"addresss"`
 	Address      string    `gorm:"type:varchar(50)" json:"address"`
 	Category     string    `gorm:"type:varchar(50);default: ART-AND-CULTURE;" json:"category"`
 	Duration     string    `gorm:"type:varchar(50);default: ONE-TIME;" json:"duration"`
