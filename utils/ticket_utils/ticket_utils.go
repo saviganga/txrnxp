@@ -858,7 +858,7 @@ func ValidateUserTicket(c *fiber.Ctx) (bool, string) {
 		if err != nil {
 			return false, fmt.Sprintf("oops! unable to fetch business - reference: %s", business_reference)
 		}
-		err = db.Model(&models.BusinessMember{}).First(&business_member, "user_id = ? AND business_id = ?", authenticated_user["id"], business.Id.String()).Error
+		err = db.Model(&models.BusinessMember{}).Find(&business_member, "user_id = ? AND business_id = ?", authenticated_user["id"], business.Id.String()).Error
 		if err != nil || business_member.Id == uuid.Nil {
 			return false, fmt.Sprintf("oops! unable to fetch business member - business: %s", business_reference)
 		}

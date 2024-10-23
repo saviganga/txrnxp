@@ -8,6 +8,7 @@ import (
 	"txrnxp/models"
 	"txrnxp/serializers/business_serializers"
 	"txrnxp/serializers/user_serializers"
+	"txrnxp/utils/wallets_utils"
 
 	"txrnxp/utils"
 
@@ -171,6 +172,11 @@ func CreateBusinessMember(c *fiber.Ctx) error {
 		dbError := db.Create(&user_query).Error
 		if dbError != nil {
 			return errors.New("oops! error creating user wallet")
+		}
+
+		err = wallets_utils.CreateUserWallet(&user_query)
+		if err != nil {
+			return errors.New("unable to create user wallet")
 		}
 
 		business_member_query := models.BusinessMember{UserId: user_query.Id, BusinessId: business.Id}
